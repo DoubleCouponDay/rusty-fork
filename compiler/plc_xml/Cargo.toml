@@ -17,6 +17,7 @@ plc_diagnostics = { path = "../plc_diagnostics" }
 plc_source = { path = "../plc_source" }
 itertools.workspace = true
 rustc-hash.workspace = true
+xml-rs = "1.0.0"
 
 [features]
 default = []
