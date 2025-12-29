@@ -168,6 +168,7 @@ impl<T: SourceContainer + Send> PipelineParticipant for CodegenParticipant<T> {
         let output_name = match self.compile_options.output_format {
             FormatOption::IR => format!("{}.ll", output_name.to_string_lossy()),
             FormatOption::Bitcode => format!("{}.bc", output_name.to_string_lossy()),
+            FormatOption::XML => format!("{}.xml", output_name.to_string_lossy()),
             _ => format!("{}.o", output_name.to_string_lossy()),
         };
 

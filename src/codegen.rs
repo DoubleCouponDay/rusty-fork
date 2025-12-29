@@ -418,6 +418,7 @@ impl<'ink> GeneratedModule<'ink> {
             FormatOption::NoPIC => self.persist_to_shared_object(output, target, optimization_level),
             FormatOption::Bitcode => self.persist_to_bitcode(output),
             FormatOption::IR => self.persist_to_ir(output),
+            FormatOption::XML => self.persist_to_xml(output)
         }
     }
 
@@ -433,6 +434,12 @@ impl<'ink> GeneratedModule<'ink> {
 
     pub fn get_unit_location(&self) -> &Path {
         &self.location
+    }
+
+    fn persist_to_xml(&self, output: PathBuf) -> Result<PathBuf, CodegenError> {
+        if self.
+
+        Ok(PathBuf::new())
     }
 
     ///

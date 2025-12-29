@@ -18,6 +18,14 @@ pub type ParameterError = clap::Error;
 #[clap(subcommand_negates_reqs = true)]
 #[clap(subcommand_precedence_over_arg = true)]
 pub struct CompileParameters {
+    #[clap(
+        long = "xml-omron",
+        group = "format",
+        global = true,
+        help = "Emit IEC 61131-10 open XML exchange format for Omron Sysmac Studio"
+    )]
+    pub output_xml_omron: bool,
+
     #[clap(short, long, global = true, name = "output-file", help = "Write output to <output-file>")]
     pub output: Option<String>,
 
@@ -402,7 +410,9 @@ impl CompileParameters {
         } else if self.output_obj_code {
             Some(FormatOption::Static)
         } else if self.output_reloc_code {
-            Some(FormatOption::Relocatable)
+            Some(FormatOption::Relocatable)        
+        } else if self.output_xml_omron {
+            Some(FormatOption::XML)
         } else {
             //Keep the parameter default as static
             None

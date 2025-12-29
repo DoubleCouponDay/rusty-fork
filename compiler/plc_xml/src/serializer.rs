@@ -79,6 +79,15 @@ impl Node {
 
         result
     }
+
+    pub fn deserialise(name: &'static str, input: &'static str) -> Self {
+        let output: Node = Node::new(name);
+
+        //recurse until all elements are parsed
+        
+
+        output
+    }
 }
 
 macro_rules! newtype_impl {
