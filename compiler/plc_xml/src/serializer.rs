@@ -26,31 +26,31 @@ pub trait IntoNode {
 }
 
 impl Node {
-    fn new(name: &'static str) -> Self {
+    pub fn new(name: &'static str) -> Self {
         Self { name, attributes: FxHashMap::default(), children: Vec::new(), closed: false, content: None }
     }
 
-    fn attribute(mut self, key: &'static str, value: &'static str) -> Self {
+    pub fn attribute(mut self, key: &'static str, value: &'static str) -> Self {
         self.attributes.insert(key, value);
         self
     }
 
-    fn child(mut self, node: &dyn IntoNode) -> Self {
+    pub fn child(mut self, node: &dyn IntoNode) -> Self {
         self.children.push(node.inner());
         self
     }
 
-    fn children(mut self, nodes: Vec<&dyn IntoNode>) -> Self {
+    pub fn children(mut self, nodes: Vec<&dyn IntoNode>) -> Self {
         self.children.extend(nodes.into_iter().map(IntoNode::inner));
         self
     }
 
-    fn close(mut self) -> Self {
+    pub fn close(mut self) -> Self {
         self.closed = true;
         self
     }
 
-    fn indent(level: usize) -> String {
+    pub fn indent(level: usize) -> String {
         " ".repeat(level * 4)
     }
 
@@ -79,15 +79,6 @@ impl Node {
 
         result
     }
-
-    pub fn deserialise(name: &'static str, input: &'static str) -> Self {
-        let output: Node = Node::new(name);
-
-        //recurse until all elements are parsed
-        
-
-        output
-    }
 }
 
 macro_rules! newtype_impl {
@@ -113,18 +104,18 @@ macro_rules! newtype_impl {
                 new.with_id(local_id)
             }
 
-            fn attribute(self, key: &'static str, value: &'static str) -> Self {
+            pub fn attribute(self, key: &'static str, value: &'static str) -> Self {
                 Self(self.inner().attribute(key, value))
             }
 
-            fn maybe_attribute(self, key: &'static str, value: Option<&'static str>) -> Self {
+            pub fn maybe_attribute(self, key: &'static str, value: Option<&'static str>) -> Self {
                 match value {
                     Some(value) => Self(self.inner().attribute(key, value)),
                     None => self,
                 }
             }
 
-            fn child(self, node: &dyn IntoNode) -> Self {
+            pub fn child(self, node: &dyn IntoNode) -> Self {
                 Self(self.inner().child(node))
             }
 
@@ -148,7 +139,7 @@ macro_rules! newtype_impl {
                 self.attribute("executionOrderId", Box::leak(id.to_string().into_boxed_str()))
             }
 
-            fn close(self) -> Self {
+            pub fn close(self) -> Self {
                 Self(self.inner().close())
             }
         }
@@ -187,6 +178,11 @@ newtype_impl!(SJump, "jump", false);
 newtype_impl!(SLabel, "label", false);
 newtype_impl!(SAction, "action", false);
 newtype_impl!(SActions, "actions", false);
+newtype_impl!(SFileHeader, "FileHeader", false);
+newtype_impl!(SContentHeader, "ContentHeader", false);
+newtype_impl!(STypes, "Types", false);
+newtype_impl!(SGlobalNamespace, "GlobalNamespace", false);
+newtype_impl!(SInstances, "Instances", false);
 
 impl SInVariable {
     pub fn connect(mut self, ref_local_id: i32) -> Self {
