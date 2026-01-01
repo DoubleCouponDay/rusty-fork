@@ -1,7 +1,6 @@
 // TODO: Remove
 #![allow(dead_code)]
 
-pub mod xml_gen;
 pub mod error;
 mod extensions;
 pub mod xml_parser;
@@ -18,4 +17,3 @@ pub(crate) mod model {
     pub mod variables;
 }
 mod reader;
-pub mod serializer;

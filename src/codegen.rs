@@ -46,7 +46,7 @@ use inkwell::{
 use plc_ast::ast::{CompilationUnit, LinkageType};
 use plc_diagnostics::diagnostics::Diagnostic;
 use plc_source::source_location::{FileMarker, SourceLocation};
-use plc_xml::xml_gen::*;
+use plc_xmlgen::xml_gen::*;
 
 mod debug;
 pub(crate) mod generators;

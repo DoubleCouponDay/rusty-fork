@@ -22,6 +22,7 @@ plc_ast = { path = "./compiler/plc_ast" }
 plc_util = { path = "./compiler/plc_util" }
 plc_diagnostics = { path = "./compiler/plc_diagnostics" }
 plc_index = { path = "./compiler/plc_index" }
+plc_xmlgen = { path = "./compiler/plc_xmlgen" }
 section_mangler = { path = "./compiler/section_mangler" }
 logos = "0.12.0"
 clap = { version = "3.0", features = ["derive"] }
@@ -75,6 +76,7 @@ members = [
     "compiler/plc_source",
     "compiler/plc_util",
     "compiler/plc_xml",
+    "compiler/plc_xmlgen",
     "compiler/plc_derive",
     "compiler/plc_index",
     "compiler/section_mangler",
