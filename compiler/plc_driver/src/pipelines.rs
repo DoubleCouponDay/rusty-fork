@@ -397,7 +397,7 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
             project
                 .generate_single_module(&context, &compile_options, target)?
                 .map(|module| {
-                    self.participants.iter_mut().try_fold((), |_, participant| participant.generate(&module))
+                    self.participants.iter_mut().try_fold((), |_, participant| participant.generate(&module, &project))
                 })
                 .unwrap_or(Ok(()))?;
         } else {
@@ -415,7 +415,7 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
                         &got_layout,
                         target,
                     )?;
-                    self.participants.iter().try_fold((), |_, participant| participant.generate(&module))
+                    self.participants.iter().try_fold((), |_, participant| participant.generate(&module, &project))
                 })
                 .collect::<Result<Vec<_>, Diagnostic>>()?;
         }
@@ -801,6 +801,7 @@ impl AnnotatedProject {
             targets.iter().map(|target| self.generate_single_module(&context, compile_options, Some(target)));
         let mut result = vec![];
         for (target, module) in targets.iter().zip(modules) {
+            let units = &self.units.iter().map(|current| &current.unit).collect();
             let obj: Object = module?
                 .unwrap()
                 .persist(
@@ -809,6 +810,7 @@ impl AnnotatedProject {
                     compile_options.output_format,
                     target,
                     compile_options.optimization,
+                    units
                 )
                 .map(Into::into)?;
 
