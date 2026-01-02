@@ -4,21 +4,21 @@ use rustc_hash::FxHashMap;
 
 #[derive(Clone)]
 pub struct Node {
-    name: &'static str,
-    children: Vec<Node>,
+    pub name: &'static str,
+    pub children: Vec<Node>,
 
     /// XML attributes, e.g. `<position x="1">` where `x` is the attribute
     ///
     /// Design Note: We use a HashMap here to avoid duplicates but also update existing values in case of
     /// repeated function calls, e.g. `with_attribute("x", 1)` and `with_attribute("x", 2)` where the value of
     /// x has been updated from 1 to 2.
-    attributes: FxHashMap<&'static str, &'static str>,
+    pub attributes: FxHashMap<&'static str, &'static str>,
 
     /// Indicates if an element has a closed form, e.g. `<position x="1" y="2"/>`
-    closed: bool,
+    pub closed: bool,
 
     /// Indicates if an element has some text wrapped inside itself, e.g. `<expression>a + b</expression>`
-    content: Option<&'static str>,
+    pub content: Option<&'static str>,
 }
 
 pub trait IntoNode {
@@ -181,8 +181,10 @@ newtype_impl!(SActions, "actions", false);
 newtype_impl!(SFileHeader, "FileHeader", false);
 newtype_impl!(SContentHeader, "ContentHeader", false);
 newtype_impl!(STypes, "Types", false);
-newtype_impl!(SGlobalNamespace, "GlobalNamespace", false);
+newtype_impl!(SGlobalNamespace, GLOBAL_NAMESPACE, false);
 newtype_impl!(SInstances, "Instances", false);
+
+pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 
 impl SInVariable {
     pub fn connect(mut self, ref_local_id: i32) -> Self {

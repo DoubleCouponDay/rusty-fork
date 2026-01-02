@@ -28,7 +28,7 @@ impl GenerationParameters {
 ///     </Instances>
 /// </Project>
 pub fn get_omron_template() -> Node {
-    let output = Node::new("Project")
+    Node::new("Project")
         .attribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
         .attribute("xmlns:smcext", "https://www.ia.omron.com/Smc")
         .attribute("xsi:schemaLocation", "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd")
@@ -42,9 +42,7 @@ pub fn get_omron_template() -> Node {
                 .attribute("name", "Sample"))
             .child(&STypes::new()
                 .child(&SGlobalNamespace::new()))
-            .child(&SInstances::new());
-        
-    output
+            .child(&SInstances::new())
 }
 
 pub fn parse_project_into_nodetree(output: &Node, annotated_project: &Vec<&CompilationUnit>) {
@@ -52,10 +50,14 @@ pub fn parse_project_into_nodetree(output: &Node, annotated_project: &Vec<&Compi
         let current_unit = annotated_project[a];
 
         //global variables
-        for b in 0..=current_unit.global_vars.len() {
-            let current_global = &current_unit.global_vars[b];
-            current_global.
-        }
+        let maybe_global_nodes = output.children.iter().find(|a| a.name == GLOBAL_NAMESPACE);
+
+        if let Some(global_nodes) = maybe_global_nodes {
+            for b in 0..=current_unit.global_vars.len() {
+                let current_global = &current_unit.global_vars[b];
+                global_nodes.child();
+            }
+        }        
         
         //Structs
 
