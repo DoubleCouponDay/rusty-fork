@@ -25,6 +25,8 @@ use plc_lowering::inheritance::InheritanceLowerer;
 use project::{object::Object, project::LibraryInformation};
 use source_code::SourceContainer;
 
+use crate::CompileOptions;
+
 use super::{AnnotatedProject, AnnotatedUnit, GeneratedProject, IndexedProject, ParsedProject};
 
 /// A Build particitpant for different steps in the pipeline
@@ -50,7 +52,7 @@ pub trait PipelineParticipant: Sync + Send {
     }
     /// Implement this to get access to the module generation section of the codegen
     /// This is useful if generating multiple modules to hook into single module generation
-    fn generate(&self, _generated_module: &GeneratedModule, _annotated_project: &AnnotatedProject) -> Result<(), Diagnostic> {
+    fn generate(&self, _generated_module: &GeneratedModule, _annotated_project: &AnnotatedProject, _compile_options: &CompileOptions) -> Result<(), Diagnostic> {
         Ok(())
     }
     /// Implement this to access the project after it got generated
@@ -147,7 +149,7 @@ impl<T: SourceContainer + Send> PipelineParticipant for CodegenParticipant<T> {
         Ok(())
     }
 
-    fn generate(&self, module: &GeneratedModule, _annotated_project: &AnnotatedProject) -> Result<(), Diagnostic> {
+    fn generate(&self, module: &GeneratedModule, _annotated_project: &AnnotatedProject, _compile_options: &CompileOptions) -> Result<(), Diagnostic> {
         let current_dir = env::current_dir()?;
         let current_dir = self.compile_options.root.as_deref().unwrap_or(&current_dir);
         let unit_location = module.get_unit_location();
@@ -183,7 +185,8 @@ impl<T: SourceContainer + Send> PipelineParticipant for CodegenParticipant<T> {
                 self.compile_options.output_format,
                 target,
                 self.compile_options.optimization,
-                &units
+                &units,
+                &_compile_options.generation
             )
             .map(Into::into)
             .map(|it: Object| it.with_target(target))?;

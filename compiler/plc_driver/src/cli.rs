@@ -3,6 +3,7 @@ use anyhow::{bail, Result};
 use clap::{ArgGroup, Parser, Subcommand};
 use encoding_rs::Encoding;
 use plc_diagnostics::diagnostics::{diagnostics_registry::DiagnosticsConfiguration, Diagnostic};
+use plc_xmlgen::xml_gen::GenerationParameters;
 use std::{env, ffi::OsStr, num::ParseIntError, path::PathBuf};
 
 use plc::output::FormatOption;
@@ -372,6 +373,12 @@ pub fn get_config_format(name: &str) -> Option<ConfigFormat> {
 }
 
 impl CompileParameters {
+    pub fn to_gen_parameters(&self) -> GenerationParameters {
+        GenerationParameters { 
+            output_xml_omron: self.output_xml_omron
+        }
+    }
+
     pub fn parse<T: AsRef<OsStr> + AsRef<str>>(args: &[T]) -> Result<CompileParameters, ParameterError> {
         CompileParameters::try_parse_from(args)
     }

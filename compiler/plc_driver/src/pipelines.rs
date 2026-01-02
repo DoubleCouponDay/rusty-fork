@@ -162,6 +162,7 @@ impl<T: SourceContainer> BuildPipeline<T> {
         self.compile_parameters.as_ref().map(|params| {
             let location = &self.project.get_location().map(|it| it.to_path_buf());
             let output_format = params.output_format().unwrap_or_else(|| self.project.get_output_format());
+
             CompileOptions {
                 root: location.to_owned(),
                 build_location: params.get_build_location(),
@@ -171,6 +172,7 @@ impl<T: SourceContainer> BuildPipeline<T> {
                 error_format: params.error_format,
                 debug_level: params.debug_level(),
                 single_module: params.single_module,
+                generation: params.to_gen_parameters(),
                 online_change: if params.online_change {
                     OnlineChange::Enabled {
                         file_name: params.got_layout_file.clone(),
@@ -397,7 +399,7 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
             project
                 .generate_single_module(&context, &compile_options, target)?
                 .map(|module| {
-                    self.participants.iter_mut().try_fold((), |_, participant| participant.generate(&module, &project))
+                    self.participants.iter_mut().try_fold((), |_, participant| participant.generate(&module, &project, &compile_options))
                 })
                 .unwrap_or(Ok(()))?;
         } else {
@@ -415,7 +417,7 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
                         &got_layout,
                         target,
                     )?;
-                    self.participants.iter().try_fold((), |_, participant| participant.generate(&module, &project))
+                    self.participants.iter().try_fold((), |_, participant| participant.generate(&module, &project, &compile_options))
                 })
                 .collect::<Result<Vec<_>, Diagnostic>>()?;
         }
@@ -800,6 +802,7 @@ impl AnnotatedProject {
         let modules =
             targets.iter().map(|target| self.generate_single_module(&context, compile_options, Some(target)));
         let mut result = vec![];
+
         for (target, module) in targets.iter().zip(modules) {
             let units = &self.units.iter().map(|current| &current.unit).collect();
             let obj: Object = module?
@@ -810,7 +813,8 @@ impl AnnotatedProject {
                     compile_options.output_format,
                     target,
                     compile_options.optimization,
-                    units
+                    units,
+                    &compile_options.generation
                 )
                 .map(Into::into)?;
 

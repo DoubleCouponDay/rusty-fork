@@ -1,4 +1,19 @@
+use plc_ast::ast::CompilationUnit;
+
 use super::serializer::*;
+
+#[derive(Debug)]
+pub struct GenerationParameters {
+    pub output_xml_omron: bool    
+}
+
+impl GenerationParameters {
+    pub fn new() -> Self {
+        GenerationParameters { 
+            output_xml_omron: false 
+        }
+    }
+}
 
 /// <?xml version=\"1.0\"?>
 /// <Project xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:smcext=\"https://www.ia.omron.com/Smc\" xsi:schemaLocation=\"https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd\" schemaVersion=\"1\" xmlns=\"www.iec.ch/public/TC65SC65BWG7TF10\">
@@ -30,4 +45,37 @@ pub fn get_omron_template() -> Node {
             .child(&SInstances::new());
         
     output
+}
+
+pub fn parse_project_into_nodetree(output: &Node, annotated_project: &Vec<&CompilationUnit>) {
+    for a in 0..=annotated_project.len() {
+        let current_unit = annotated_project[a];
+
+        //global variables
+        for b in 0..=current_unit.global_vars.len() {
+            let current_global = &current_unit.global_vars[b];
+            current_global.
+        }
+        
+        //Structs
+
+
+        //Functions
+
+
+        //Enums
+
+
+        //Unions
+
+
+        //Function blocks
+
+
+        //Programs
+    }
+}
+
+pub fn write_xml_file() {
+
 }

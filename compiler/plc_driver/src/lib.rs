@@ -12,6 +12,7 @@ use anyhow::{anyhow, Result};
 use pipelines::{
     participant::CodegenParticipant, AnnotatedProject, BuildPipeline, GeneratedProject, Pipeline,
 };
+use plc_xmlgen::xml_gen::GenerationParameters;
 use std::{
     ffi::OsStr,
     fmt::{Debug, Display},
@@ -56,6 +57,7 @@ pub struct CompileOptions {
     pub debug_level: DebugLevel,
     pub single_module: bool,
     pub online_change: OnlineChange,
+    pub generation: GenerationParameters
 }
 
 impl Default for CompileOptions {
@@ -70,6 +72,7 @@ impl Default for CompileOptions {
             debug_level: DebugLevel::None,
             single_module: false,
             online_change: OnlineChange::Disabled,
+            generation: GenerationParameters::new()
         }
     }
 }

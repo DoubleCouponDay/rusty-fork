@@ -46,7 +46,7 @@ use inkwell::{
 use plc_ast::ast::{CompilationUnit, LinkageType};
 use plc_diagnostics::diagnostics::Diagnostic;
 use plc_source::source_location::{FileMarker, SourceLocation};
-use plc_xmlgen::xml_gen::*;
+use plc_xmlgen::{serializer::Node, xml_gen::*};
 
 mod debug;
 pub(crate) mod generators;
@@ -403,7 +403,8 @@ impl<'ink> GeneratedModule<'ink> {
         format: FormatOption,
         target: &Target,
         optimization_level: OptimizationLevel,
-        annotated_project: &Vec<&CompilationUnit>
+        annotated_project: &Vec<&CompilationUnit>,
+        compilation_options: &GenerationParameters
     ) -> Result<PathBuf, CodegenError> {
         let output = Self::get_output_file(output_dir, output_name, target);
         //ensure output exists
@@ -420,7 +421,7 @@ impl<'ink> GeneratedModule<'ink> {
             FormatOption::NoPIC => self.persist_to_shared_object(output, target, optimization_level),
             FormatOption::Bitcode => self.persist_to_bitcode(output),
             FormatOption::IR => self.persist_to_ir(output),
-            FormatOption::XML => self.persist_to_xml(output, annotated_project)
+            FormatOption::XML => self.persist_to_xml(output, annotated_project, compilation_options)
         }
     }
 
@@ -438,35 +439,21 @@ impl<'ink> GeneratedModule<'ink> {
         &self.location
     }
 
-    fn persist_to_xml(&self, output: PathBuf, annotated_project: &Vec<&CompilationUnit>) -> Result<PathBuf, CodegenError> {
-        let template = get_omron_template();
+    fn persist_to_xml(&self, output: PathBuf, annotated_project: &Vec<&CompilationUnit>, compilation_options: &GenerationParameters) -> Result<PathBuf, CodegenError> {
 
-        for a in 0..=annotated_project.len() {
-            let current_unit = annotated_project[a];
-
-            //global variables
-            for b in 0..=current_unit.global_vars.len() {
-
-            }
-            
-            //Structs
-
-
-            //Functions
-
-
-            //Enums
-
-
-            //Unions
-
-
-            //Function blocks
-
-
-            //Programs
+        let template: Node = if compilation_options.output_xml_omron {
+            get_omron_template()
         }
-        Ok(PathBuf::new())
+
+        else {
+            return Err(
+                CodegenError::GenericError(
+                    String::from("No XML variant chosen as CLI argument but XML output format was specified."), 
+                    SourceLocation::undefined()));
+        };
+
+        parse_project_into_nodetree(&template, annotated_project);
+        Ok(output)
     }
 
     ///
