@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 plc_ast = { path = "../plc_ast" }
-xml-rs = "1.0.0"
+xml = "1.0.0"
 rustc-hash.workspace = true

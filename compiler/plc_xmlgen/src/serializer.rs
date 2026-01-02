@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 
 #[derive(Clone)]
 pub struct Node {
-    pub name: &'static str,
+    pub name: String,
     pub children: Vec<Node>,
 
     /// XML attributes, e.g. `<position x="1">` where `x` is the attribute
@@ -12,13 +12,13 @@ pub struct Node {
     /// Design Note: We use a HashMap here to avoid duplicates but also update existing values in case of
     /// repeated function calls, e.g. `with_attribute("x", 1)` and `with_attribute("x", 2)` where the value of
     /// x has been updated from 1 to 2.
-    pub attributes: FxHashMap<&'static str, &'static str>,
+    pub attributes: FxHashMap<String, String>,
 
     /// Indicates if an element has a closed form, e.g. `<position x="1" y="2"/>`
     pub closed: bool,
 
     /// Indicates if an element has some text wrapped inside itself, e.g. `<expression>a + b</expression>`
-    pub content: Option<&'static str>,
+    pub content: Option<String>,
 }
 
 pub trait IntoNode {
@@ -26,16 +26,30 @@ pub trait IntoNode {
 }
 
 impl Node {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(name: String) -> Self {
         Self { name, attributes: FxHashMap::default(), children: Vec::new(), closed: false, content: None }
     }
 
-    pub fn attribute(mut self, key: &'static str, value: &'static str) -> Self {
+    pub fn new_str(name: &'static str) -> Self {
+        Self { name: name.to_string(), attributes: FxHashMap::default(), children: Vec::new(), closed: false, content: None }
+    }
+
+    pub fn attribute(mut self, key: String, value: String) -> Self {
         self.attributes.insert(key, value);
         self
     }
 
+    pub fn attribute_str(mut self, key: &'static str, value: &'static str) -> Self {
+        self.attributes.insert(key.to_string(), value.to_string());
+        self
+    }    
+
     pub fn child(mut self, node: &dyn IntoNode) -> Self {
+        self.children.push(node.inner());
+        self
+    }
+
+    pub fn child_borrowed(&mut self, node: &dyn IntoNode) -> &Self {
         self.children.push(node.inner());
         self
     }
@@ -54,13 +68,13 @@ impl Node {
         " ".repeat(level * 4)
     }
 
-    fn serialize_content(indent: &str, name: &'static str, content: &'static str) -> String {
+    fn serialize_content(indent: String, name: String, content: String) -> String {
         format!("{indent}<{name}>{content}</{name}>\n")
     }
 
     #[allow(unused_assignments)]
     pub fn serialize(&self, level: usize) -> String {
-        let (name, indent) = (self.name, Node::indent(level));
+        let (name, indent) = (self.name.clone(), Node::indent(level));
         let attributes = self.attributes.iter().map(|(key, value)| format!("{key}=\"{value}\""));
         let attributes_str = attributes.collect::<Vec<_>>().join(" ");
         let mut result = String::new();
@@ -69,8 +83,8 @@ impl Node {
             return format!("{indent}<{name} {attributes_str}/>\n");
         }
 
-        if let Some(content) = self.content {
-            return Node::serialize_content(&indent, name, content);
+        if let Some(content) = self.content.clone() {
+            return Node::serialize_content(indent.to_string(), name, content);
         }
 
         result = format!("{indent}<{name} {attributes_str}>\n");
@@ -94,8 +108,8 @@ macro_rules! newtype_impl {
         impl $name_struct {
             pub fn new() -> Self {
                 match $negatable {
-                    true => Self(Node::new($name_node).attribute("negated", "false")),
-                    false => Self(Node::new($name_node)),
+                    true => Self(Node::new_str($name_node).attribute_str("negated", "false")),
+                    false => Self(Node::new_str($name_node)),
                 }
             }
 
@@ -104,11 +118,15 @@ macro_rules! newtype_impl {
                 new.with_id(local_id)
             }
 
-            pub fn attribute(self, key: &'static str, value: &'static str) -> Self {
+            pub fn attribute(self, key: String, value: String) -> Self {
                 Self(self.inner().attribute(key, value))
             }
 
-            pub fn maybe_attribute(self, key: &'static str, value: Option<&'static str>) -> Self {
+            pub fn attribute_str(self, key: &'static str, value: &'static str) -> Self {
+                Self(self.inner().attribute_str(key, value))
+            }            
+
+            pub fn maybe_attribute(self, key: String, value: Option<String>) -> Self {
                 match value {
                     Some(value) => Self(self.inner().attribute(key, value)),
                     None => self,
@@ -128,15 +146,15 @@ macro_rules! newtype_impl {
             }
 
             pub fn with_id<T: std::fmt::Display>(self, id: T) -> Self {
-                self.attribute("localId", Box::leak(id.to_string().into_boxed_str()))
+                self.attribute_str("localId", Box::leak(id.to_string().into_boxed_str()))
             }
 
             pub fn with_ref_id<T: std::fmt::Display>(self, id: T) -> Self {
-                self.attribute("refLocalId", Box::leak(id.to_string().into_boxed_str()))
+                self.attribute_str("refLocalId", Box::leak(id.to_string().into_boxed_str()))
             }
 
             pub fn with_execution_id<T: std::fmt::Display>(self, id: T) -> Self {
-                self.attribute("executionOrderId", Box::leak(id.to_string().into_boxed_str()))
+                self.attribute_str("executionOrderId", Box::leak(id.to_string().into_boxed_str()))
             }
 
             pub fn close(self) -> Self {
@@ -181,10 +199,6 @@ newtype_impl!(SActions, "actions", false);
 newtype_impl!(SFileHeader, "FileHeader", false);
 newtype_impl!(SContentHeader, "ContentHeader", false);
 newtype_impl!(STypes, "Types", false);
-newtype_impl!(SGlobalNamespace, GLOBAL_NAMESPACE, false);
-newtype_impl!(SInstances, "Instances", false);
-
-pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 
 impl SInVariable {
     pub fn connect(mut self, ref_local_id: i32) -> Self {
@@ -192,7 +206,7 @@ impl SInVariable {
         self
     }
 
-    pub fn with_expression(self, expression: &'static str) -> Self {
+    pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
     }
 }
@@ -204,21 +218,21 @@ impl SOutVariable {
         self
     }
 
-    pub fn connect_name(mut self, ref_local_id: i32, name: &'static str) -> Self {
+    pub fn connect_name(mut self, ref_local_id: i32, name: String) -> Self {
         self =
             self.child(&SConnectionPointIn::new().child(
-                &SConnection::new().with_ref_id(ref_local_id).attribute("formalParameter", name).close(),
+                &SConnection::new().with_ref_id(ref_local_id).attribute("formalParameter".to_string(), name).close(),
             ));
         self
     }
 
-    pub fn with_expression(self, expression: &'static str) -> Self {
+    pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
     }
 }
 
 impl SInOutVariable {
-    pub fn with_expression(self, expression: &'static str) -> Self {
+    pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
     }
 }
@@ -234,30 +248,30 @@ impl SReturn {
 
     pub fn negate(self, value: bool) -> Self {
         self.child(&SAddData::new().child(&SData::new().child(
-            &SNegate::new().attribute("value", Box::leak(value.to_string().into_boxed_str())).close(),
+            &SNegate::new().attribute("value".to_string(), value.to_string()).close(),
         )))
     }
 }
 
 impl SContent {
-    pub fn with_declaration(mut self, content: &'static str) -> Self {
+    pub fn with_declaration(mut self, content: String) -> Self {
         self.0.content = Some(content);
         self
     }
 }
 
 impl SPou {
-    pub fn init(name: &'static str, kind: &'static str, declaration: &'static str) -> Self {
+    pub fn init(name: String, kind: String, declaration: String) -> Self {
         Self::new()
-            .attribute("xmlns", "http://www.plcopen.org/xml/tc6_0201")
-            .attribute("name", name)
-            .attribute("pouType", kind)
+            .attribute_str("xmlns", "http://www.plcopen.org/xml/tc6_0201")
+            .attribute("name".to_string(), name)
+            .attribute("pouType".to_string(), kind)
             .child(&SInterface::new().children(vec![
                     &SLocalVars::new().close(),
                     &SAddData::new().child(
                         &SData::new()
-                            .attribute("name", "www.bachmann.at/plc/plcopenxml")
-                            .attribute("handleUnknown", "implementation")
+                            .attribute_str("name", "www.bachmann.at/plc/plcopenxml")
+                            .attribute_str("handleUnknown", "implementation")
                             .child(
                                 &STextDeclaration::new()
                                     .child(&SContent::new().with_declaration(declaration)),
@@ -277,12 +291,12 @@ impl SPou {
 }
 
 impl SBlock {
-    pub fn init(name: &'static str, local_id: i32, execution_order_id: i32) -> Self {
+    pub fn init(name: String, local_id: i32, execution_order_id: i32) -> Self {
         Self::new().with_name(name).with_id(local_id).with_execution_id(execution_order_id)
     }
 
-    pub fn with_name(self, name: &'static str) -> Self {
-        self.attribute("typeName", name)
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("typeName".to_string(), name)
     }
 
     pub fn with_input(self, variables: Vec<&dyn IntoNode>) -> Self {
@@ -317,8 +331,8 @@ impl SOutputVariables {
 }
 
 impl SVariable {
-    pub fn with_name(self, name: &'static str) -> Self {
-        self.attribute("formalParameter", name)
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("formalParameter".to_string(), name)
     }
 
     pub fn connect(self, ref_local_id: i32) -> Self {
@@ -331,7 +345,7 @@ impl SVariable {
 }
 
 impl SExpression {
-    pub fn expression(expression: &'static str) -> Self {
+    pub fn expression(expression: String) -> Self {
         let mut node = Self::new();
         node.0.content = Some(expression);
         node
@@ -339,8 +353,8 @@ impl SExpression {
 }
 
 impl SConnector {
-    pub fn with_name(self, name: &'static str) -> Self {
-        self.attribute("name", name)
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("name".to_string(), name)
     }
 
     pub fn connect(self, ref_local_id: i32) -> Self {
@@ -349,8 +363,8 @@ impl SConnector {
 }
 
 impl SContinuation {
-    pub fn with_name(self, name: &'static str) -> Self {
-        self.attribute("name", name)
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("name".to_string(), name)
     }
 
     pub fn connect_out(self, ref_local_id: i32) -> Self {
@@ -359,14 +373,14 @@ impl SContinuation {
 }
 
 impl SLabel {
-    pub fn with_name(self, name: &'static str) -> Self {
-        self.attribute("label", name)
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("label".to_string(), name)
     }
 }
 
 impl SJump {
-    pub fn with_name(self, name: &'static str) -> Self {
-        self.attribute("label", name)
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("label".to_string(), name)
     }
 
     pub fn connect(self, ref_local_id: i32) -> Self {
@@ -375,17 +389,30 @@ impl SJump {
 
     pub fn negate(self) -> Self {
         self.child(
-            &SAddData::new().child(&SData::new().child(&SNegate::new().attribute("value", "true").close())),
+            &SAddData::new().child(&SData::new().child(&SNegate::new().attribute("value".to_string(), "true".to_string()).close())),
         )
     }
 }
 
 impl SAction {
-    pub fn name(name: &'static str) -> Self {
-        Self::new().attribute("name", name)
+    pub fn name(name: String) -> Self {
+        Self::new().attribute("name".to_string(), name)
     }
 
     pub fn with_fbd(self, children: Vec<&dyn IntoNode>) -> Self {
         self.child(&SBody::new().child(&YFbd::new().children(children)))
     }
 }
+
+//Omron specific xml
+newtype_impl!(SGlobalNamespace, GLOBAL_NAMESPACE, false);
+newtype_impl!(SInstances, INSTANCES, false);
+newtype_impl!(SConfiguration, CONFIGURATION, false);
+newtype_impl!(SResource, RESOURCE, false);
+newtype_impl!(SGlobalVars, GLOBAL_VARS, false);
+
+pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
+pub const INSTANCES: &'static str = "Instances";
+pub const CONFIGURATION: &'static str = "Configuration";
+pub const RESOURCE: &'static str = "Resource";
+pub const GLOBAL_VARS: &'static str = "GlobalVars";

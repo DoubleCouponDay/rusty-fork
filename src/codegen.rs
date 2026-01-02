@@ -440,8 +440,10 @@ impl<'ink> GeneratedModule<'ink> {
     }
 
     fn persist_to_xml(&self, output: PathBuf, annotated_project: &Vec<&CompilationUnit>, compilation_options: &GenerationParameters) -> Result<PathBuf, CodegenError> {
+        let mut schema_path: &'static str = "";
 
-        let template: Node = if compilation_options.output_xml_omron {
+        let mut template: Node = if compilation_options.output_xml_omron {
+            schema_path = OMRON_SCHEMA;
             get_omron_template()
         }
 
@@ -452,7 +454,7 @@ impl<'ink> GeneratedModule<'ink> {
                     SourceLocation::undefined()));
         };
 
-        parse_project_into_nodetree(&template, annotated_project);
+        parse_project_into_nodetree(annotated_project, schema_path,  &mut template);
         Ok(output)
     }
 

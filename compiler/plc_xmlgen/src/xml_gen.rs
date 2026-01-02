@@ -28,37 +28,32 @@ impl GenerationParameters {
 ///     </Instances>
 /// </Project>
 pub fn get_omron_template() -> Node {
-    Node::new("Project")
-        .attribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
-        .attribute("xmlns:smcext", "https://www.ia.omron.com/Smc")
-        .attribute("xsi:schemaLocation", "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd")
-        .attribute("schemaVersion", "1")
-        .attribute("xmlns", "www.iec.ch/public/TC65SC65BWG7TF10")
+    Node::new_str("Project")
+        .attribute_str("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
+        .attribute_str("xmlns:smcext", "https://www.ia.omron.com/Smc")
+        .attribute_str("xsi:schemaLocation", OMRON_SCHEMA)
+        .attribute_str("schemaVersion", "1")
+        .attribute_str("xmlns", "www.iec.ch/public/TC65SC65BWG7TF10")
             .child(&SFileHeader::new()
-                .attribute("companyName", "OMRON Corporation")
-                .attribute("productName", "Sysmac Studio")
-                .attribute("productVersion", "1.30.0.0"))
+                .attribute_str("companyName", "OMRON Corporation")
+                .attribute_str("productName", "Sysmac Studio")
+                .attribute_str("productVersion", "1.30.0.0"))
             .child(&SContentHeader::new()
-                .attribute("name", "Sample"))
+                .attribute_str("name", "Sample"))
             .child(&STypes::new()
                 .child(&SGlobalNamespace::new()))
             .child(&SInstances::new())
 }
 
-pub fn parse_project_into_nodetree(output: &Node, annotated_project: &Vec<&CompilationUnit>) {
+pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
+
+pub fn parse_project_into_nodetree(annotated_project: &Vec<&CompilationUnit>, schema_path: &'static str, output_root: &mut Node) {
     for a in 0..=annotated_project.len() {
         let current_unit = annotated_project[a];
+        let unit_name = current_unit.file.get_name().unwrap_or("");
 
-        //global variables
-        let maybe_global_nodes = output.children.iter().find(|a| a.name == GLOBAL_NAMESPACE);
+        let _ = parse_globals(current_unit, unit_name, schema_path, output_root);
 
-        if let Some(global_nodes) = maybe_global_nodes {
-            for b in 0..=current_unit.global_vars.len() {
-                let current_global = &current_unit.global_vars[b];
-                global_nodes.child();
-            }
-        }        
-        
         //Structs
 
 
@@ -76,6 +71,77 @@ pub fn parse_project_into_nodetree(output: &Node, annotated_project: &Vec<&Compi
 
         //Programs
     }
+}
+
+fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+    let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
+
+    let globals_root = maybe_globals_root.ok_or(())?;
+
+    //create the 4 destinations for globals
+    let mut constant_retain_globals = SGlobalVars::new()
+        .attribute_str("constant", "true")
+        .attribute_str("retain", "true");
+
+    let mut constant_globals = SGlobalVars::new()
+        .attribute_str("constant", "true");
+
+    let mut retain_globals = SGlobalVars::new()
+        .attribute_str("retain", "true");
+
+    let mut normal_globals = SGlobalVars::new();
+
+    //parse the unit into nodes
+    for b in 0..=current_unit.global_vars.len() {
+        let current_global = &current_unit.global_vars[b];
+        
+        let data_node = SData::new()
+            .attribute_str("name", schema_path)
+            .attribute_str("handleUknown", "discard")
+            .child();
+
+        let adddata_node = SAddData::new();
+
+        let mut new_var = SVariable::new();
+
+        if current_global.constant && current_global.retain {
+            constant_retain_globals = constant_retain_globals.child(&new_var);
+        }
+
+        else if current_global.constant {
+            constant_globals = constant_globals.child(&new_var);
+        }
+
+        else if current_global.retain {
+            retain_globals = retain_globals.child(&new_var);
+        }
+
+        else {
+            normal_globals = normal_globals.child(&new_var);
+        }
+
+    }
+    
+    //relinquish copies of the nodes into the tree
+    let name_label = String::from("name");
+    let resources_name = format!("{}_{}", unit_name, RESOURCE);
+    
+    let resource_node = SResource::new()
+        .attribute(name_label.clone(), resources_name)
+        .attribute_str("resourceTypeName", "")
+        .child(&constant_retain_globals)
+        .child(&constant_globals)
+        .child(&retain_globals)
+        .child(&normal_globals);
+
+    let config_name = format!("{}_{}", unit_name, CONFIGURATION);
+
+    let configuration_node = SConfiguration::new()
+        .attribute(name_label, config_name)
+        .child(&resource_node);
+
+    globals_root.child_borrowed(&configuration_node);    
+    return Ok(());
 }
 
 pub fn write_xml_file() {
