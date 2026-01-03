@@ -31,7 +31,12 @@ impl Node {
     }
 
     pub fn new_str(name: &'static str) -> Self {
-        Self { name: name.to_string(), attributes: FxHashMap::default(), children: Vec::new(), closed: false, content: None }
+        Self::new(name.to_string())
+    }
+
+    pub fn content_borrowed(mut self, input: String) -> Self {
+        self.content = Some(input);
+        self
     }
 
     pub fn attribute(mut self, key: String, value: String) -> Self {
@@ -40,8 +45,7 @@ impl Node {
     }
 
     pub fn attribute_str(mut self, key: &'static str, value: &'static str) -> Self {
-        self.attributes.insert(key.to_string(), value.to_string());
-        self
+        Self::attribute(self, key.to_string(), value.to_string())
     }    
 
     pub fn child(mut self, node: &dyn IntoNode) -> Self {
@@ -54,8 +58,9 @@ impl Node {
         self
     }
 
-    pub fn children(mut self, nodes: Vec<&dyn IntoNode>) -> Self {
-        self.children.extend(nodes.into_iter().map(IntoNode::inner));
+    pub fn children(mut self, nodes: Vec<Box<dyn IntoNode>>) -> Self {
+        let mapped: Vec<Node> = nodes.iter().map(|a| a.inner()).collect();
+        self.children.extend(mapped);
         self
     }
 
@@ -113,6 +118,12 @@ macro_rules! newtype_impl {
                 }
             }
 
+            pub fn content(self, input: String) -> Self {
+                let mut inner = self.inner();
+                inner.content = Some(input);
+                Self(inner)
+            }            
+
             pub fn id(local_id: i32) -> Self {
                 let new = $name_struct::new();
                 new.with_id(local_id)
@@ -137,7 +148,7 @@ macro_rules! newtype_impl {
                 Self(self.inner().child(node))
             }
 
-            pub fn children(self, nodes: Vec<&dyn IntoNode>) -> Self {
+            pub fn children(self, nodes: Vec<Box<dyn IntoNode>>) -> Self {
                 Self(self.inner().children(nodes))
             }
 
@@ -200,6 +211,10 @@ newtype_impl!(SFileHeader, "FileHeader", false);
 newtype_impl!(SContentHeader, "ContentHeader", false);
 newtype_impl!(STypes, "Types", false);
 
+pub trait SizedVariable: IntoNode + Sized {
+
+}
+
 impl SInVariable {
     pub fn connect(mut self, ref_local_id: i32) -> Self {
         self = self.child(&SConnectionPointIn::new().child(&SConnection::new().with_ref_id(ref_local_id)));
@@ -208,6 +223,10 @@ impl SInVariable {
 
     pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
+    }
+
+    pub fn with_expression_str(self, expression: &'static str) -> Self {
+        self.child(&SExpression::expression_str(expression))
     }
 }
 
@@ -228,6 +247,10 @@ impl SOutVariable {
 
     pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
+    }
+
+    pub fn with_expression_str(self, expression: &'static str) -> Self {
+        self.child(&SExpression::expression_str(expression))
     }
 }
 
@@ -267,8 +290,8 @@ impl SPou {
             .attribute("name".to_string(), name)
             .attribute("pouType".to_string(), kind)
             .child(&SInterface::new().children(vec![
-                    &SLocalVars::new().close(),
-                    &SAddData::new().child(
+                    Box::new(SLocalVars::new().close()),
+                    Box::new(SAddData::new().child(
                         &SData::new()
                             .attribute_str("name", "www.bachmann.at/plc/plcopenxml")
                             .attribute_str("handleUnknown", "implementation")
@@ -276,16 +299,20 @@ impl SPou {
                                 &STextDeclaration::new()
                                     .child(&SContent::new().with_declaration(declaration)),
                             ),
-                    ),
+                    )),
                 ]))
     }
 
+    pub fn init_str(name: &'static str, kind: &'static str, declaration: &'static str) -> Self {
+        Self::init(name.to_string(), kind.to_string(), declaration.to_string())
+    }
+
     /// Implicitly wraps the fbd in a block node, i.e. <block><fbd>...<fbd/><block/>
-    pub fn with_fbd(self, children: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_fbd(self, children: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SBody::new().child(&YFbd::new().children(children)))
     }
 
-    pub fn with_actions(self, children: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_actions(self, children: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SActions::new().children(children))
     }
 }
@@ -295,37 +322,41 @@ impl SBlock {
         Self::new().with_name(name).with_id(local_id).with_execution_id(execution_order_id)
     }
 
+    pub fn init_str(name: &'static str, local_id: i32, execution_order_id: i32) -> Self {
+        Self::init(name.to_string(), local_id, execution_order_id)
+    }    
+
     pub fn with_name(self, name: String) -> Self {
         self.attribute("typeName".to_string(), name)
     }
 
-    pub fn with_input(self, variables: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_input(self, variables: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SInputVariables::new().children(variables))
     }
 
-    pub fn with_output(self, variables: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_output(self, variables: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SOutputVariables::new().children(variables))
     }
 
-    pub fn with_inout(self, variables: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_inout(self, variables: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SInOutVariables::new().children(variables))
     }
 }
 
 impl SBody {
-    pub fn with_fbd(self, children: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_fbd(self, children: Vec<Box<dyn IntoNode>>) -> Self {
         Self::new().child(&YFbd::new().children(children))
     }
 }
 
 impl SInputVariables {
-    pub fn with_variables(variables: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_variables(variables: Vec<Box<dyn IntoNode>>) -> Self {
         Self::new().children(variables)
     }
 }
 
 impl SOutputVariables {
-    pub fn with_variables(variables: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_variables(variables: Vec<Box<dyn IntoNode>>) -> Self {
         Self::new().children(variables)
     }
 }
@@ -333,6 +364,10 @@ impl SOutputVariables {
 impl SVariable {
     pub fn with_name(self, name: String) -> Self {
         self.attribute("formalParameter".to_string(), name)
+    }
+
+    pub fn with_name_str(self, name: &'static str) -> Self {
+        self.with_name(name.to_string())
     }
 
     pub fn connect(self, ref_local_id: i32) -> Self {
@@ -345,10 +380,14 @@ impl SVariable {
 }
 
 impl SExpression {
-    pub fn expression(expression: String) -> Self {
+    pub fn expression(input: String) -> Self {
         let mut node = Self::new();
-        node.0.content = Some(expression);
+        node.0.content = Some(input);
         node
+    }
+
+    pub fn expression_str(input: &'static str) -> Self {
+        Self::expression(input.to_string())
     }
 }
 
@@ -399,7 +438,7 @@ impl SAction {
         Self::new().attribute("name".to_string(), name)
     }
 
-    pub fn with_fbd(self, children: Vec<&dyn IntoNode>) -> Self {
+    pub fn with_fbd(self, children: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SBody::new().child(&YFbd::new().children(children)))
     }
 }
@@ -410,9 +449,17 @@ newtype_impl!(SInstances, INSTANCES, false);
 newtype_impl!(SConfiguration, CONFIGURATION, false);
 newtype_impl!(SResource, RESOURCE, false);
 newtype_impl!(SGlobalVars, GLOBAL_VARS, false);
+newtype_impl!(SType, TYPE, false);
+newtype_impl!(STypeName, TYPE_NAME, false);
+newtype_impl!(SInitialValue, INITIAL_VALUE, false);
+newtype_impl!(SSimpleValue, SIMPLE_VALUE, false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";
 pub const CONFIGURATION: &'static str = "Configuration";
 pub const RESOURCE: &'static str = "Resource";
 pub const GLOBAL_VARS: &'static str = "GlobalVars";
+pub const TYPE: &'static str = "Type";
+pub const TYPE_NAME: &'static str = "TypeName";
+pub const INITIAL_VALUE: &'static str = "InitialValue";
+pub const SIMPLE_VALUE: &'static str = "SimpleValue";

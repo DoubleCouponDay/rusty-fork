@@ -1,6 +1,5 @@
-use plc_ast::ast::CompilationUnit;
-
 use super::serializer::*;
+use plc_ast::ast::*;
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -94,30 +93,57 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     //parse the unit into nodes
     for b in 0..=current_unit.global_vars.len() {
         let current_global = &current_unit.global_vars[b];
+        let mut parsed_variables: Vec<Box<dyn IntoNode>> = Vec::with_capacity(current_global.variables.len());
         
-        let data_node = SData::new()
-            .attribute_str("name", schema_path)
-            .attribute_str("handleUknown", "discard")
-            .child();
+        for c in 0..=current_global.variables.len() {
+            let current_variable = &current_global.variables[c];
 
-        let adddata_node = SAddData::new();
+            let data_node = SData::new()
+                .attribute_str("name", schema_path)
+                .attribute_str("handleUnknown", "discard");
 
-        let mut new_var = SVariable::new();
+            let adddata_node = SAddData::new()
+                .child(&data_node);
+
+            let maybe_typename = current_variable.data_type_declaration.get_name();
+
+            if maybe_typename.is_none() { //every variable needs a typename
+                continue;
+            }
+            let typename = maybe_typename.unwrap().to_string();
+
+            let typename_node = STypeName::new()
+                .content(typename);
+
+            let type_node = SType::new()
+                .child(&typename_node);
+
+            let variable_value = current_variable.
+
+            let initial_node = SInitialValue::new()
+                .attribute("value".to_string(), )
+
+            let new_var = SVariable::new()
+                .child(&adddata_node)
+                .child(&type_node);
+
+            parsed_variables.push(Box::new(new_var));
+        }
 
         if current_global.constant && current_global.retain {
-            constant_retain_globals = constant_retain_globals.child(&new_var);
+            constant_retain_globals = constant_retain_globals.children(parsed_variables);
         }
 
         else if current_global.constant {
-            constant_globals = constant_globals.child(&new_var);
+            constant_globals = constant_globals.children(parsed_variables);
         }
 
         else if current_global.retain {
-            retain_globals = retain_globals.child(&new_var);
+            retain_globals = retain_globals.children(parsed_variables);
         }
 
         else {
-            normal_globals = normal_globals.child(&new_var);
+            normal_globals = normal_globals.children(parsed_variables);
         }
 
     }

@@ -295,7 +295,7 @@ impl<'xml> ConnectionResolver<'xml> for NodeIndex<'xml> {
 
 #[cfg(test)]
 mod tests {
-    use crate::serializer::{SBlock, SInVariable, SOutVariable, SVariable, YFbd};
+    use plc_xmlgen::serializer::{SBlock, SInVariable, SOutVariable, SVariable, YFbd};
     use crate::{
         model::{
             connector::Connector, fbd::FunctionBlockDiagram, pou::Pou, project::Project,
@@ -314,15 +314,15 @@ mod tests {
     fn add_block() {
         let content = YFbd::new()
             .children(vec![
-                &SBlock::init("ADD", 1, 0)
+                Box::new(SBlock::init_str("ADD", 1, 0)
                     .with_input(vec![
-                        &SVariable::new().with_name("a").connect(1),
-                        &SVariable::new().with_name("b").connect(2),
+                        Box::new(SVariable::new().with_name_str("a").connect(1)),
+                        Box::new(SVariable::new().with_name_str("b").connect(2)),
                     ])
-                    .with_output(vec![&SVariable::new().with_name("c")]),
-                &SInVariable::new().with_id(2).with_expression("a"),
-                &SInVariable::new().with_id(3).with_expression("b"),
-                &SOutVariable::new().with_id(4).with_expression("c").with_execution_id(1).connect(1),
+                    .with_output(vec![Box::new(SVariable::new().with_name_str("c"))])),
+                Box::new(SInVariable::new().with_id(2).with_expression_str("a")),
+                Box::new(SInVariable::new().with_id(3).with_expression_str("b")),
+                Box::new(SOutVariable::new().with_id(4).with_expression_str("c").with_execution_id(1).connect(1)),
             ])
             .serialize();
 

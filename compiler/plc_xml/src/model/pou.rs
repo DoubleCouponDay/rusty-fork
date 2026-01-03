@@ -122,7 +122,7 @@ impl FromStr for PouType {
 mod tests {
     use insta::assert_debug_snapshot;
 
-    use crate::serializer::SPou;
+    use plc_xmlgen::serializer::SPou;
     use crate::{
         model::pou::Pou,
         reader::{get_start_tag, Reader},
@@ -132,14 +132,14 @@ mod tests {
     #[test]
     fn empty() {
         let declaration = "PROGRAM foo VAR END_VAR";
-        let content = SPou::init("foo", "program", declaration).with_fbd(vec![]).serialize();
+        let content = SPou::init_str("foo", "program", declaration).with_fbd(vec![]).serialize();
 
         assert_debug_snapshot!(xml_parser::visit(&content));
     }
 
     #[test]
     fn poutype_program() {
-        let content = SPou::init("foo", "program", "").serialize();
+        let content = SPou::init_str("foo", "program", "").serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn poutype_function() {
-        let content = SPou::init("foo", "function", "").serialize();
+        let content = SPou::init_str("foo", "function", "").serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn poutype_function_block() {
-        let content = SPou::init("foo", "functionBlock", "").serialize();
+        let content = SPou::init_str("foo", "functionBlock", "").serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn poutype_unknown() {
-        let content = SPou::init("foo", "asdasd", "").serialize();
+        let content = SPou::init_str("foo", "asdasd", "").serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());

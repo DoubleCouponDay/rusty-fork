@@ -224,7 +224,7 @@ impl Parseable for BlockVariable {
 mod tests {
     use insta::assert_debug_snapshot;
 
-    use crate::serializer::{
+    use plc_xmlgen::serializer::{
         SInOutVariables, SInVariable, SInputVariables, SOutVariable, SOutputVariables, SVariable,
     };
     use crate::{
@@ -235,7 +235,9 @@ mod tests {
 
     #[test]
     fn block_input_variable() {
-        let content = SInputVariables::new().children(vec![&SVariable::new().with_name("")]).serialize();
+        let content = SInputVariables::new().children(vec![
+            Box::new(SVariable::new().with_name_str(""))
+        ]).serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -245,7 +247,9 @@ mod tests {
 
     #[test]
     fn block_output_variable() {
-        let content = SOutputVariables::new().children(vec![&SVariable::new().with_name("")]).serialize();
+        let content = SOutputVariables::new().children(vec![
+            Box::new(SVariable::new().with_name_str(""))
+        ]).serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -255,7 +259,9 @@ mod tests {
 
     #[test]
     fn block_inout_variable() {
-        let content = SInOutVariables::new().children(vec![&SVariable::new().with_name("")]).serialize();
+        let content = SInOutVariables::new().children(vec![
+            Box::new(SVariable::new().with_name_str(""))
+        ]).serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -265,7 +271,7 @@ mod tests {
 
     #[test]
     fn fbd_in_variable() {
-        let content = SInVariable::id(0).with_expression("a").serialize();
+        let content = SInVariable::id(0).with_expression_str("a").serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
@@ -274,7 +280,7 @@ mod tests {
 
     #[test]
     fn fbd_out_variable() {
-        let content = SOutVariable::id(0).with_expression("a").serialize();
+        let content = SOutVariable::id(0).with_expression_str("a").serialize();
 
         let mut reader = Reader::new(&content);
         let tag = get_start_tag(reader.read_event().unwrap());
