@@ -77,7 +77,7 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
 
     let globals_root = maybe_globals_root.ok_or(())?;
 
-    //create the 4 destinations for globals
+    //create the 4 destinations for <GlobalVars>
     let mut constant_retain_globals = SGlobalVars::new()
         .attribute_str("constant", "true")
         .attribute_str("retain", "true");
@@ -98,11 +98,11 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
         for c in 0..=current_global.variables.len() {
             let current_variable = &current_global.variables[c];
 
-            let data_node = SData::new()
+            let data_node = SData::new() //<Data>
                 .attribute_str("name", schema_path)
                 .attribute_str("handleUnknown", "discard");
 
-            let adddata_node = SAddData::new()
+            let adddata_node = SAddData::new() //<AddData>
                 .child(&data_node);
 
             let maybe_typename = current_variable.data_type_declaration.get_name();
@@ -112,10 +112,10 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
             }
             let typename = maybe_typename.unwrap().to_string();
 
-            let typename_node = STypeName::new()
+            let typename_node = STypeName::new() //<TypeName>
                 .content(typename);
 
-            let type_node = SType::new()
+            let type_node = SType::new() //<TypeName>
                 .child(&typename_node);
 
             let variable_value = current_variable.
