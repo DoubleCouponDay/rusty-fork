@@ -118,14 +118,20 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
             let type_node = SType::new() //<TypeName>
                 .child(&typename_node);
 
-            let variable_value = current_variable.
-
-            let initial_node = SInitialValue::new()
-                .attribute("value".to_string(), )
-
-            let new_var = SVariable::new()
+            let mut new_var = SVariable::new() //<Variable>
                 .child(&adddata_node)
                 .child(&type_node);
+
+            if let Some(variable_value) = &current_variable.initializer {
+                let simple_node = SSimpleValue::new() //<SimpleValue />
+                    .attribute_str("value", &variable_value.raw_stmt)
+                    .close();
+
+                let initial_node = SInitialValue::new() //<InitialValue>
+                    .child(&simple_node);
+
+                new_var = new_var.child(&initial_node);
+            }
 
             parsed_variables.push(Box::new(new_var));
         }

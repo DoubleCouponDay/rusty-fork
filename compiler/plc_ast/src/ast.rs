@@ -870,6 +870,7 @@ impl MetaData {
 #[derive(Clone, PartialEq)]
 pub struct AstNode {
     pub stmt: AstStatement,
+    pub raw_stmt: String,
     pub id: AstId,
     pub location: SourceLocation,
     pub metadata: Option<MetaData>,
@@ -1350,20 +1351,22 @@ impl AstNode {
             || self.is_hardware_access()
     }
 
-    pub fn new(stmt: AstStatement, id: AstId, location: impl Into<SourceLocation>) -> AstNode {
-        AstNode { stmt, id, location: location.into(), metadata: None }
+    pub fn new(stmt: AstStatement, id: AstId, location: impl Into<SourceLocation>, raw_stmt: String) -> AstNode {
+        AstNode { stmt, id, location: location.into(), metadata: None, raw_stmt: raw_stmt }
     }
 
     pub fn new_literal(kind: AstLiteral, id: AstId, location: SourceLocation) -> AstNode {
-        AstNode::new(AstStatement::Literal(kind), id, location)
+        let raw_stmt = kind.to_string();
+        AstNode::new(AstStatement::Literal(kind), id, location, raw_stmt)
     }
 
     pub fn new_integer(value: i128, id: AstId, location: SourceLocation) -> AstNode {
-        AstNode::new(AstStatement::Literal(AstLiteral::Integer(value)), id, location)
+        AstNode::new(AstStatement::Literal(AstLiteral::Integer(value)), id, location, value.to_string())
     }
 
     pub fn new_real(value: String, id: AstId, location: SourceLocation) -> AstNode {
-        AstNode::new(AstStatement::Literal(AstLiteral::Real(value)), id, location)
+        let raw_stmt = value.clone();
+        AstNode::new(AstStatement::Literal(AstLiteral::Real(value)), id, location, raw_stmt)
     }
 
     pub fn new_string(
@@ -1372,10 +1375,13 @@ impl AstNode {
         id: AstId,
         location: SourceLocation,
     ) -> AstNode {
-        AstNode::new(
-            AstStatement::Literal(AstLiteral::String(StringValue { value: value.into(), is_wide })),
+        let raw_stmt = value.into();
+
+        AstNode::new(            
+            AstStatement::Literal(AstLiteral::String(StringValue { value: raw_stmt.clone(), is_wide })),
             id,
             location,
+            raw_stmt
         )
     }
 
@@ -1638,36 +1644,38 @@ pub struct AstFactory {}
 
 impl AstFactory {
     pub fn create_empty_statement(location: SourceLocation, id: AstId) -> AstNode {
-        AstNode { stmt: AstStatement::EmptyStatement(EmptyStatement {}), location, id, metadata: None }
+        AstNode { stmt: AstStatement::EmptyStatement(EmptyStatement {}), location, id, metadata: None, raw_stmt: String::new() }
     }
 
     pub fn create_return_statement(
         condition: Option<AstNode>,
         location: SourceLocation,
         id: AstId,
+        raw_stmt: String
     ) -> AstNode {
         let condition = condition.map(Box::new);
-        AstNode::new(AstStatement::ReturnStatement(ReturnStatement { condition }), id, location)
+        AstNode::new(AstStatement::ReturnStatement(ReturnStatement { condition }), id, location, raw_stmt)
     }
 
-    pub fn create_exit_statement(location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ExitStatement(()), id, location)
+    pub fn create_exit_statement(location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ExitStatement(()), id, location, raw_stmt)
     }
 
-    pub fn create_continue_statement(location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ContinueStatement(()), id, location)
+    pub fn create_continue_statement(location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ContinueStatement(()), id, location, raw_stmt)
     }
 
-    pub fn create_case_condition(result: AstNode, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::CaseCondition(Box::new(result)), id, location)
+    pub fn create_case_condition(result: AstNode, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::CaseCondition(Box::new(result)), id, location, raw_stmt)
     }
 
-    pub fn create_vla_range_statement(location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::VlaRangeStatement, id, location)
+    pub fn create_vla_range_statement(location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::VlaRangeStatement, id, location, raw_stmt)
     }
 
     pub fn create_literal(kind: AstLiteral, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::Literal(kind), id, location)
+        let raw_stmt = kind.to_string();
+        AstNode::new(AstStatement::Literal(kind), id, location, raw_stmt)
     }
 
     pub fn create_hardware_access(
@@ -1676,55 +1684,59 @@ impl AstFactory {
         address: Vec<AstNode>,
         location: SourceLocation,
         id: usize,
+        raw_stmt: String
     ) -> AstNode {
         AstNode::new(
             AstStatement::HardwareAccess(HardwareAccess { access, direction, address }),
             id,
             location,
+            raw_stmt
         )
     }
 
     pub fn create_default_value(location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::DefaultValue(DefaultValue {}), id, location)
+        AstNode::new(AstStatement::DefaultValue(DefaultValue {}), id, location, String::new())
     }
 
-    pub fn create_expression_list(expressions: Vec<AstNode>, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ExpressionList(expressions), id, location)
+    pub fn create_expression_list(expressions: Vec<AstNode>, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ExpressionList(expressions), id, location, raw_stmt)
     }
 
-    pub fn create_paren_expression(expression: AstNode, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ParenExpression(Box::new(expression)), id, location)
+    pub fn create_paren_expression(expression: AstNode, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ParenExpression(Box::new(expression)), id, location, raw_stmt)
     }
 
     /// creates a new if-statement
-    pub fn create_if_statement(stmt: IfStatement, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ControlStatement(AstControlStatement::If(stmt)), id, location)
+    pub fn create_if_statement(stmt: IfStatement, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ControlStatement(AstControlStatement::If(stmt)), id, location, raw_stmt)
     }
 
     ///  creates a new for loop statement
-    pub fn create_for_loop(stmt: ForLoopStatement, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ControlStatement(AstControlStatement::ForLoop(stmt)), id, location)
+    pub fn create_for_loop(stmt: ForLoopStatement, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ControlStatement(AstControlStatement::ForLoop(stmt)), id, location, raw_stmt)
     }
 
     /// creates a new while statement
-    pub fn create_while_statement(stmt: LoopStatement, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ControlStatement(AstControlStatement::WhileLoop(stmt)), id, location)
+    pub fn create_while_statement(stmt: LoopStatement, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ControlStatement(AstControlStatement::WhileLoop(stmt)), id, location, raw_stmt)
     }
 
     /// creates a new repeat-statement
-    pub fn create_repeat_statement(stmt: LoopStatement, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ControlStatement(AstControlStatement::RepeatLoop(stmt)), id, location)
+    pub fn create_repeat_statement(stmt: LoopStatement, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ControlStatement(AstControlStatement::RepeatLoop(stmt)), id, location, raw_stmt)
     }
 
     /// creates a new case-statement
-    pub fn create_case_statement(stmt: CaseStatement, location: SourceLocation, id: AstId) -> AstNode {
-        AstNode::new(AstStatement::ControlStatement(AstControlStatement::Case(stmt)), id, location)
+    pub fn create_case_statement(stmt: CaseStatement, location: SourceLocation, id: AstId, raw_stmt: String) -> AstNode {
+        AstNode::new(AstStatement::ControlStatement(AstControlStatement::Case(stmt)), id, location, raw_stmt)
     }
 
     /// creates an or-expression
     pub fn create_or_expression(left: AstNode, right: AstNode) -> AstNode {
         let id = left.get_id();
         let location = left.get_location().span(&right.get_location());
+        let raw_stmt = format!("{} OR {}", left.raw_stmt, right.raw_stmt);
+
         AstNode::new(
             AstStatement::BinaryExpression(BinaryExpression {
                 left: Box::new(left),
@@ -1733,6 +1745,7 @@ impl AstFactory {
             }),
             id,
             location,
+            raw_stmt
         )
     }
 
