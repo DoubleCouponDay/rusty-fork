@@ -118,6 +118,12 @@ impl DateAndTime {
     }
 }
 
+impl ToString for DateAndTime {
+    fn to_string(&self) -> String {
+        format!("DATE_AND_TIME#{}-{}-{}-{}:{}:{}", self.year, self.month, self.day, self.hour, self.min, self.sec)
+    }
+}
+
 impl Time {
     /// the nanos represented by the given time-period
     pub fn value(&self) -> i64 {
@@ -140,10 +146,22 @@ impl Time {
     }
 }
 
+impl ToString for Time {
+    fn to_string(&self) -> String {
+        format!("LTIME#{}D{}H{}M{}S{}MS{}US{}NS", self.day, self.hour, self.min, self.sec, self.milli, self.micro, self.nano)
+    }
+}
+
 impl TimeOfDay {
     /// the value of the time of day in nanoseconds since 1970-01-01-00:00:00
     pub fn value(&self) -> Result<i64, String> {
         calculate_date_time(1970, 1, 1, self.hour, self.min, self.sec, self.nano)
+    }
+}
+
+impl ToString for TimeOfDay {
+    fn to_string(&self) -> String {
+        format!("TIME_OF_DAY#{}:{}:{}", self.hour, self.min, self.sec) //nano not supported? https://infosys.beckhoff.com/english.php?content=../content/1033/tcplccontrol/925615243.html&id=
     }
 }
 
@@ -152,6 +170,12 @@ impl Date {
     /// the time-part of the returned value is set to 00:00:00
     pub fn value(&self) -> Result<i64, String> {
         calculate_date_time(self.year, self.month, self.day, 0, 0, 0, 0)
+    }
+}
+
+impl ToString for Date {
+    fn to_string(&self) -> String {
+        format!("LDATE#{}-{}-{}", self.year, self.month, self.day)
     }
 }
 
@@ -179,6 +203,17 @@ impl Time {
 impl Array {
     pub fn elements(&self) -> Option<&AstNode> {
         self.elements.as_ref().map(|it| it.as_ref())
+    }
+}
+
+impl ToString for Array {
+    fn to_string(&self) -> String {
+        match self.elements.iter()
+            .map(|a| a.raw_stmt.clone())
+            .reduce(|a, b| format!("{}, {}", a, b)) {
+                Some(item) => format!("[{}]", item),
+                None => String::from("[]"),
+            }
     }
 }
 
@@ -335,6 +370,23 @@ impl Debug for AstLiteral {
             AstLiteral::Array(Array { elements, .. }) => {
                 f.debug_struct("LiteralArray").field("elements", elements).finish()
             }
+        }
+    }
+}
+
+impl ToString for AstLiteral {
+    fn to_string(&self) -> String {
+        match self {
+            AstLiteral::Null => String::new(),
+            AstLiteral::Integer(int_value) => int_value.to_string(),
+            AstLiteral::Date(date) => date.to_string(),
+            AstLiteral::DateAndTime(date_and_time) => date_and_time.to_string(),
+            AstLiteral::TimeOfDay(time_of_day) => time_of_day.to_string(),
+            AstLiteral::Time(time) => time.to_string(),
+            AstLiteral::Real(real_value) => real_value.to_owned(),
+            AstLiteral::Bool(bool_value) => bool_value.to_string(),
+            AstLiteral::String(string_value) => string_value.value.to_owned(),
+            AstLiteral::Array(array) => array.to_string(),
         }
     }
 }
