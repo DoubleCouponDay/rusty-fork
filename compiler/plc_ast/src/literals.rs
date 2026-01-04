@@ -2,7 +2,7 @@ use std::fmt::{Debug, Formatter};
 
 use chrono::NaiveDate;
 
-use crate::ast::AstNode;
+use crate::ast::{AstNode, AstStatement};
 use derive_more::TryInto;
 
 macro_rules! impl_getters {
@@ -208,12 +208,20 @@ impl Array {
 
 impl ToString for Array {
     fn to_string(&self) -> String {
-        match self.elements.iter()
-            .map(|a| a.raw_stmt.clone())
-            .reduce(|a, b| format!("{}, {}", a, b)) {
-                Some(item) => format!("[{}]", item),
-                None => String::from("[]"),
-            }
+        let reduced = self.elements.iter()
+            .filter(|a| matches!(&a.stmt, AstStatement::Literal(_)))
+            .map(|b| {
+                match &b.stmt {
+                    AstStatement::Literal(item) => item.to_string(),
+                    _ => panic!("only literals should be taken!")
+                }
+            })
+            .reduce(|c, d| format!("{}, {}", c, d));
+            
+        match reduced {
+            Some(item) => format!("[{}]", item),
+            None => String::from("[]"),
+        }
     }
 }
 

@@ -122,9 +122,10 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
                 .child(&adddata_node)
                 .child(&type_node);
 
-            if let Some(variable_value) = &current_variable.initializer {
+            if let Some(variable_node) = &current_variable.initializer && let AstStatement::Literal(variable_value
+            ) = &variable_node.stmt {
                 let simple_node = SSimpleValue::new() //<SimpleValue />
-                    .attribute_str("value", &variable_value.raw_stmt)
+                    .attribute("value".to_string(), variable_value.to_string())
                     .close();
 
                 let initial_node = SInitialValue::new() //<InitialValue>

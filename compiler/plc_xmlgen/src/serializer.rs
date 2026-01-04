@@ -44,7 +44,7 @@ impl Node {
         self
     }
 
-    pub fn attribute_str(mut self, key: &'static str, value: &'static str) -> Self {
+    pub fn attribute_str(self, key: &'static str, value: &'static str) -> Self {
         Self::attribute(self, key.to_string(), value.to_string())
     }    
 
