@@ -1751,6 +1751,8 @@ impl AstFactory {
 
     /// creates a not-expression
     pub fn create_not_expression(operator: AstNode, location: SourceLocation, id: usize) -> AstNode {
+        let raw_stmt = format!("NOT {}", operator.raw_stmt);
+
         AstNode::new(
             AstStatement::UnaryExpression(UnaryExpression {
                 value: Box::new(operator),
@@ -1758,60 +1760,70 @@ impl AstFactory {
             }),
             id,
             location,
+            raw_stmt
         )
     }
 
     /// creates a new Identifier
-    pub fn create_identifier<T, U>(name: T, location: U, id: AstId) -> AstNode
+    pub fn create_identifier<T, U>(name: T, location: U, id: AstId, raw_stmt: String) -> AstNode
     where
         T: Into<String>,
         U: Into<SourceLocation>,
     {
-        AstNode::new(AstStatement::Identifier(name.into()), id, location.into())
+        AstNode::new(AstStatement::Identifier(name.into()), id, location.into(), raw_stmt)
     }
 
     pub fn create_super_reference<T>(location: T, deref: Option<DerefMarker>, id: AstId) -> AstNode
     where
         T: Into<SourceLocation>,
     {
-        AstNode::new(AstStatement::Super(deref), id, location.into())
+        let raw_stmt = format!("SUPER");
+        AstNode::new(AstStatement::Super(deref), id, location.into(), raw_stmt)
     }
 
-    pub fn create_this_reference<T>(location: T, id: AstId) -> AstNode
+    pub fn create_this_reference<T>(location: T, id: AstId, raw_stmt: String) -> AstNode
     where
         T: Into<SourceLocation>,
     {
-        AstNode::new(AstStatement::This, id, location.into())
+        AstNode::new(AstStatement::This, id, location.into(), raw_stmt)
     }
 
     pub fn create_unary_expression(
         operator: Operator,
         value: AstNode,
         location: SourceLocation,
-        id: AstId,
+        id: AstId
     ) -> AstNode {
+        let raw_stmt = format!("{} {}", operator, value.raw_stmt);
+
         AstNode::new(
             AstStatement::UnaryExpression(UnaryExpression { operator, value: Box::new(value) }),
             id,
             location,
+            raw_stmt
         )
     }
 
     pub fn create_assignment(left: AstNode, right: AstNode, id: AstId) -> AstNode {
         let location = left.location.span(&right.location);
+        let raw_stmt = format!("{} := {}", left.raw_stmt, right.raw_stmt);
         AstNode::new(
             AstStatement::Assignment(Assignment { left: Box::new(left), right: Box::new(right) }),
             id,
             location,
+            raw_stmt
         )
     }
 
     pub fn create_output_assignment(left: AstNode, right: AstNode, id: AstId) -> AstNode {
         let location = left.location.span(&right.location);
+        let raw_stmt = format!("{} := {}", left.raw_stmt, right.raw_stmt);
+
         AstNode::new(
             AstStatement::OutputAssignment(Assignment { left: Box::new(left), right: Box::new(right) }),
             id,
             location,
+            raw_stmt
         )
     }
 
@@ -1821,10 +1833,13 @@ impl AstFactory {
     //       and then fn create_assignment(kind: AssignmentKind, ...)
     pub fn create_ref_assignment(left: AstNode, right: AstNode, id: AstId) -> AstNode {
         let location = left.location.span(&right.location);
+        let raw_stmt = format!("{} := {}", left.raw_stmt, right.raw_stmt);
+
         AstNode::new(
             AstStatement::RefAssignment(Assignment { left: Box::new(left), right: Box::new(right) }),
             id,
             location,
+            raw_stmt
         )
     }
 
