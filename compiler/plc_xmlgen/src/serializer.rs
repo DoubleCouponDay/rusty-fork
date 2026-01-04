@@ -271,7 +271,7 @@ impl SReturn {
 
     pub fn negate(self, value: bool) -> Self {
         self.child(&SAddData::new().child(&SData::new().child(
-            &SNegate::new().attribute("value".to_string(), value.to_string()).close(),
+            &SNegate::new().attribute(String::from("value"), value.to_string()).close(),
         )))
     }
 }
@@ -428,7 +428,7 @@ impl SJump {
 
     pub fn negate(self) -> Self {
         self.child(
-            &SAddData::new().child(&SData::new().child(&SNegate::new().attribute("value".to_string(), "true".to_string()).close())),
+            &SAddData::new().child(&SData::new().child(&SNegate::new().attribute(String::from("value"), String::from("true")).close())),
         )
     }
 }
