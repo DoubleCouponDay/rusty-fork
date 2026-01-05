@@ -193,20 +193,29 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
 
     let start = XmlEvent::StartElement {
         name: Name::from(treenode.name.as_str()),
-        attributes: treenode.attributes.drain().map(|a| 
+        attributes: treenode.attributes.iter().map(|a| 
             Attribute {
-                name: Name::from(a.0.to_owned()),
-                value: a.1.to_owned()
+                name: Name::from(a.0.as_str()),
+                value: a.1.as_str()
         })
         .collect(), 
         namespace: Cow::Owned(Namespace::empty())
     };
 
-    writer.write(start);
+    let _ = writer.write(start).or_else(|a| {
+        return Err(Error::new(std::io::ErrorKind::Other, a));
+    });
 
-    for i in 0..treenode.children.len() {
-        let child = treenode.children[i];
-        write_xml_file(output_path, child);
+    if treenode.closed {
+        let end = XmlEvent::end_element();
+
+        let _ = writer.write(end).or_else(|a| {
+            return Err(Error::new(std::io::ErrorKind::Other, a));
+        });
+    }
+
+    for item in treenode.children.drain(0..) {
+        write_xml_file(output_path, item)?;
     }
 
     Ok(())
