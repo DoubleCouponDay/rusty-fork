@@ -50,7 +50,7 @@ pub fn get_omron_template() -> Node {
 pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
 
 pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, mut output_root: Node) -> Result<(), Error> {
-    for a in 0..=units.len() {
+    for a in 0..units.len() {
         let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
@@ -99,11 +99,11 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     let mut normal_globals = SGlobalVars::new();
 
     //parse the unit into nodes
-    for b in 0..=current_unit.global_vars.len() {
+    for b in 0..current_unit.global_vars.len() {
         let current_global = &current_unit.global_vars[b];
         let mut parsed_variables: Vec<Box<dyn IntoNode>> = Vec::with_capacity(current_global.variables.len());
         
-        for c in 0..=current_global.variables.len() {
+        for c in 0..current_global.variables.len() {
             let current_variable = &current_global.variables[c];
 
             let data_node = SData::new() //<Data>
@@ -212,6 +212,7 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
         let _ = writer.write(end).or_else(|a| {
             return Err(Error::new(std::io::ErrorKind::Other, a));
         });
+        return Ok(())
     }
 
     for item in treenode.children.drain(0..) {
