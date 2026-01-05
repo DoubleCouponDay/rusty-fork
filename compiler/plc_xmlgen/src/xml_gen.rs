@@ -1,7 +1,8 @@
-use std::{io::Error, fs::File, path::{Path, PathBuf}, string::ParseError};
+use std::{borrow::Cow, fs::File, io::Error, path::{Path, PathBuf}};
 
 use super::serializer::*;
 use plc_ast::ast::*;
+use xml::{attribute::Attribute, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig};
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -48,12 +49,12 @@ pub fn get_omron_template() -> Node {
 
 pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
 
-pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, output_root: &mut Node) -> Result<(), Error> {
+pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, mut output_root: Node) -> Result<(), Error> {
     for a in 0..=units.len() {
         let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
-        let _ = parse_globals(current_unit, unit_name, schema_path, output_root);
+        let _ = parse_globals(current_unit, unit_name, schema_path, &mut output_root);
 
         //Structs
 
@@ -183,16 +184,30 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     return Ok(());
 }
 
-pub fn write_xml_file(output_path: &Path, treenode: &Node) -> Result<(), Error> {
-    let file = File::create(output_path).or_else(|| {
-        Err(std::io::Error::new(ErrorKind))
-    });
+pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Error> {
+    let file = File::create(output_path)?;
 
     let mut writer = EmitterConfig::new()
         .perform_indent(true)
         .create_writer(file);
 
-    for i..0=treenode.serialize(level)
+    let start = XmlEvent::StartElement {
+        name: Name::from(treenode.name.as_str()),
+        attributes: treenode.attributes.drain().map(|a| 
+            Attribute {
+                name: Name::from(a.0.to_owned()),
+                value: a.1.to_owned()
+        })
+        .collect(), 
+        namespace: Cow::Owned(Namespace::empty())
+    };
+
+    writer.write(start);
+
+    for i in 0..treenode.children.len() {
+        let child = treenode.children[i];
+        write_xml_file(output_path, child);
+    }
 
     Ok(())
 }

@@ -454,8 +454,12 @@ impl<'ink> GeneratedModule<'ink> {
                     SourceLocation::undefined()));
         };
 
-        parse_project_into_nodetree(annotated_project, schema_path, &output,  &mut template)?;
-        Ok(output)
+        match parse_project_into_nodetree(annotated_project, schema_path, &output, template) {
+            Ok(_) => Ok(output),
+            Err(error) => {
+                return Err(CodegenError::GenericError(error.to_string(), SourceLocation::default()));
+            }
+        }
     }
 
     ///
