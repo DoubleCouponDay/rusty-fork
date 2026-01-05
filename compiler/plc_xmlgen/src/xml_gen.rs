@@ -173,7 +173,7 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
         .attribute(name_label, config_name)
         .child(&resource_node);
 
-    globals_root.child_borrowed(&configuration_node);    
+    globals_root.child_borrowed(&configuration_node); //need to borrow a mut Node so I don't break the root nodes reference to the globals node
     return Ok(());
 }
 
