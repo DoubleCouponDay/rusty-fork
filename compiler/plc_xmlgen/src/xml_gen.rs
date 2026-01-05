@@ -1,3 +1,5 @@
+use std::{io::Error, fs::File, path::{Path, PathBuf}, string::ParseError};
+
 use super::serializer::*;
 use plc_ast::ast::*;
 
@@ -46,9 +48,9 @@ pub fn get_omron_template() -> Node {
 
 pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
 
-pub fn parse_project_into_nodetree(annotated_project: &Vec<&CompilationUnit>, schema_path: &'static str, output_root: &mut Node) {
-    for a in 0..=annotated_project.len() {
-        let current_unit = annotated_project[a];
+pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, output_root: &mut Node) -> Result<(), Error> {
+    for a in 0..=units.len() {
+        let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
         let _ = parse_globals(current_unit, unit_name, schema_path, output_root);
@@ -69,7 +71,12 @@ pub fn parse_project_into_nodetree(annotated_project: &Vec<&CompilationUnit>, sc
 
 
         //Programs
+
+        
+
     }
+    write_xml_file(output_path, output_root)?;
+    Ok(())
 }
 
 fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
@@ -133,7 +140,6 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
 
                 new_var = new_var.child(&initial_node);
             }
-
             parsed_variables.push(Box::new(new_var));
         }
 
@@ -177,6 +183,16 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     return Ok(());
 }
 
-pub fn write_xml_file() {
+pub fn write_xml_file(output_path: &Path, treenode: &Node) -> Result<(), Error> {
+    let file = File::create(output_path).or_else(|| {
+        Err(std::io::Error::new(ErrorKind))
+    });
 
+    let mut writer = EmitterConfig::new()
+        .perform_indent(true)
+        .create_writer(file);
+
+    for i..0=treenode.serialize(level)
+
+    Ok(())
 }
