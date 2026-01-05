@@ -68,19 +68,20 @@ mod tests {
 
     use crate::{
         model::block::Block,
-        reader::{get_start_tag, Reader},
-        serializer::{SBlock, SVariable},
+        reader::{get_start_tag, Reader},        
         xml_parser::Parseable,
     };
 
+    use plc_xmlgen::serializer::{SBlock, SVariable};
+
     #[test]
     fn add_block() {
-        let content = SBlock::init("ADD", 1, 0)
+        let content = SBlock::init_str("ADD", 1, 0)
             .with_input(vec![
-                &SVariable::new().with_name("a").connect(1),
-                &SVariable::new().with_name("b").connect(2),
+                Box::new(SVariable::new().with_name_str("a").connect(1)),
+                Box::new(SVariable::new().with_name_str("b").connect(2)),
             ])
-            .with_output(vec![&SVariable::new().with_name("c")])
+            .with_output(vec![Box::new(SVariable::new().with_name_str("c"))])
             .serialize();
 
         let mut reader = Reader::new(&content);

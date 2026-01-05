@@ -205,7 +205,7 @@ mod ir {
     use driver::{compile, generate_to_string, generate_to_string_debug};
     use plc_source::SourceCode;
     use plc_util::filtered_assert_snapshot;
-    use plc_xml::serializer::{
+    use plc_xmlgen::serializer::{
         SAction, SBlock, SConnector, SContinuation, SInVariable, SJump, SLabel, SOutVariable, SPou, SReturn,
     };
 
@@ -308,13 +308,13 @@ mod ir {
     // TODO: Transfer this test to `codegen/tests/debug_tests/cfc.rs` once `test_utils.rs` has been refactored
     fn conditional_return_debug() {
         let declaration = "FUNCTION foo : DINT VAR_INPUT val : DINT; END_VAR";
-        let content = SPou::init("foo", "function", declaration).with_fbd(vec![
+        let content = SPou::init_str("foo", "function", declaration).with_fbd(vec![
             // IF val = 1 THEN RETURN
-            &SInVariable::id(2).with_expression("val = 5"),
-            &SReturn::id(3).with_execution_id(2).connect(2).negate(false),
+            Box::new(SInVariable::id(2).with_expression_str("val = 5")),
+            Box::new(SReturn::id(3).with_execution_id(2).connect(2).negate(false)),
             // ELSE val := 10
-            &SInVariable::id(4).with_expression("10"),
-            &SInVariable::id(5).with_execution_id(3).connect(4).with_expression("val"),
+            Box::new(SInVariable::id(4).with_expression_str("10")),
+            Box::new(SInVariable::id(5).with_execution_id(3).connect(4).with_expression_str("val")),
         ]);
 
         let mut source = SourceCode::from(content.serialize());
@@ -333,14 +333,14 @@ mod ir {
     // TODO: Transfer this test to `codegen/tests/debug_tests/cfc.rs` once `test_utils.rs` has been refactored
     fn jump_debug() {
         let declaration = "PROGRAM foo VAR val : DINT := 0; END_VAR";
-        let content = SPou::init("foo", "program", declaration).with_fbd(vec![
+        let content = SPou::init_str("foo", "program", declaration).with_fbd(vec![
             // IF TRUE THEN GOTO lbl
-            &SInVariable::id(1).with_expression("val = 0"), // condition
-            &SLabel::id(2).with_name("lbl").with_execution_id(1), // label
-            &SJump::id(3).with_name("lbl").with_execution_id(2).connect(1), // statement
+            Box::new(SInVariable::id(1).with_expression_str("val = 0")), // condition
+            Box::new(SLabel::id(2).with_name_str("lbl").with_execution_id(1)), // label
+            Box::new(SJump::id(3).with_name_str("lbl").with_execution_id(2).connect(1)), // statement
             // ELSE x := FALSE
-            &SOutVariable::id(4).with_execution_id(3).with_expression("val").connect(5), // assignment
-            &SInVariable::id(5).with_expression("1"),
+            Box::new(SOutVariable::id(4).with_execution_id(3).with_expression_str("val").connect(5)), // assignment
+            Box::new(SInVariable::id(5).with_expression_str("1")),
         ]);
 
         let mut source = SourceCode::from(content.serialize());
@@ -358,22 +358,22 @@ mod ir {
     #[test]
     // TODO: Transfer this test to `codegen/tests/debug_tests/cfc.rs` once `test_utils.rs` has been refactored
     fn actions_debug() {
-        let content = SPou::init("main", "program", "PROGRAM main VAR a, b : DINT; END_VAR")
+        let content = SPou::init_str("main", "program", "PROGRAM main VAR a, b : DINT; END_VAR")
             .with_actions(vec![
-                &SAction::name("newAction").with_fbd(vec![
-                    &SOutVariable::id(1).with_expression("a").with_execution_id(0).connect(2),
-                    &SInVariable::id(2).with_expression("a + 1"),
-                ]),
-                &SAction::name("newAction2").with_fbd(vec![
-                    &SInVariable::id(1).with_expression("b + 2"),
-                    &SOutVariable::id(2).with_expression("b").with_execution_id(0).connect(1),
-                ]),
+                Box::new(SAction::name_str("newAction").with_fbd(vec![
+                    Box::new(SOutVariable::id(1).with_expression_str("a").with_execution_id(0).connect(2)),
+                    Box::new(SInVariable::id(2).with_expression_str("a + 1")),
+                ])),
+                Box::new(SAction::name_str("newAction2").with_fbd(vec![
+                    Box::new(SInVariable::id(1).with_expression_str("b + 2")),
+                    Box::new(SOutVariable::id(2).with_expression_str("b").with_execution_id(0).connect(1)),
+                ])),
             ])
             .with_fbd(vec![
-                &SBlock::id(1).with_name("newAction").with_execution_id(1),
-                &SBlock::id(2).with_name("newAction2").with_execution_id(2),
-                &SInVariable::id(4).with_expression("0"),
-                &SOutVariable::id(3).with_expression("a").with_execution_id(0).connect(4),
+                Box::new(SBlock::id(1).with_name_str("newAction").with_execution_id(1)),
+                Box::new(SBlock::id(2).with_name_str("newAction2").with_execution_id(2)),
+                Box::new(SInVariable::id(4).with_expression_str("0")),
+                Box::new(SOutVariable::id(3).with_expression_str("a").with_execution_id(0).connect(4)),
             ]);
 
         let mut source = SourceCode::from(content.serialize());
@@ -390,11 +390,11 @@ mod ir {
     #[test]
     // TODO: Transfer this test to `codegen/tests/debug_tests/cfc.rs` once `test_utils.rs` has been refactored
     fn sink_source_debug() {
-        let content = SPou::init("main", "program", "PROGRAM main VAR x: DINT; END_VAR").with_fbd(vec![
-            &SInVariable::id(1).with_expression("5"),
-            &SConnector::id(2).with_name("s1").connect(1),
-            &SContinuation::id(3).with_name("s1"),
-            &SOutVariable::id(4).with_expression("x").with_execution_id(1).connect(3),
+        let content = SPou::init_str("main", "program", "PROGRAM main VAR x: DINT; END_VAR").with_fbd(vec![
+            Box::new(SInVariable::id(1).with_expression_str("5")),
+            Box::new(SConnector::id(2).with_name_str("s1").connect(1)),
+            Box::new(SContinuation::id(3).with_name_str("s1")),
+            Box::new(SOutVariable::id(4).with_expression_str("x").with_execution_id(1).connect(3)),
         ]);
 
         let mut source = SourceCode::from(content.serialize());

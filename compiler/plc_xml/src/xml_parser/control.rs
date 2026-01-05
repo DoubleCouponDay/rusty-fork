@@ -108,7 +108,7 @@ mod tests {
     use ast::provider::IdProvider;
     use insta::assert_debug_snapshot;
 
-    use crate::serializer::{SInVariable, SJump, SLabel, SOutVariable, SPou, SReturn};
+    use plc_xmlgen::serializer::{SInVariable, SJump, SLabel, SOutVariable, SPou, SReturn};
     use crate::{
         model::control::Control,
         reader::{get_start_tag, Reader},
@@ -136,12 +136,12 @@ mod tests {
     #[test]
     fn jump_to_label() {
         let declaration = "PROGRAM program_0 VAR x : BOOL := 0; END_VAR";
-        let content = SPou::init("program_0", "program", declaration).with_fbd(vec![
-            &SInVariable::id(0).with_expression("x"),
-            &SLabel::id(1).with_name("lbl").with_execution_id(0),
-            &SJump::id(2).with_name("lbl").with_execution_id(1).connect(0),
-            &SOutVariable::id(3).with_execution_id(2).with_expression("x").connect(4),
-            &SInVariable::id(4).with_expression("FALSE"),
+        let content = SPou::init_str("program_0", "program", declaration).with_fbd(vec![
+            Box::new(SInVariable::id(0).with_expression_str("x")),
+            Box::new(SLabel::id(1).with_name_str("lbl").with_execution_id(0)),
+            Box::new(SJump::id(2).with_name_str("lbl").with_execution_id(1).connect(0)),
+            Box::new(SOutVariable::id(3).with_execution_id(2).with_expression_str("x").connect(4)),
+            Box::new(SInVariable::id(4).with_expression_str("FALSE")),
         ]);
 
         assert_debug_snapshot!(xml_parser::visit(&content.serialize()));
@@ -159,12 +159,12 @@ mod tests {
     #[test]
     fn negated_jump() {
         let declaration = "PROGRAM program_0 VAR x : BOOL := 0; END_VAR";
-        let content = SPou::init("program_0", "program", declaration).with_fbd(vec![
-            &SInVariable::id(0).with_expression("x"),
-            &SLabel::id(1).with_name("lbl").with_execution_id(0),
-            &SJump::id(2).with_name("lbl").with_execution_id(1).connect(0).negate(),
-            &SOutVariable::id(3).with_execution_id(2).with_expression("x").connect(4),
-            &SInVariable::id(4).with_expression("FALSE"),
+        let content = SPou::init_str("program_0", "program", declaration).with_fbd(vec![
+            Box::new(SInVariable::id(0).with_expression_str("x")),
+            Box::new(SLabel::id(1).with_name_str("lbl").with_execution_id(0)),
+            Box::new(SJump::id(2).with_name_str("lbl").with_execution_id(1).connect(0).negate()),
+            Box::new(SOutVariable::id(3).with_execution_id(2).with_expression_str("x").connect(4)),
+            Box::new(SInVariable::id(4).with_expression_str("FALSE")),
         ]);
 
         assert_debug_snapshot!(xml_parser::visit(&content.serialize()));
@@ -173,13 +173,13 @@ mod tests {
     #[test]
     fn negated_jump_ast() {
         let declaration = "PROGRAM program_0 VAR x : BOOL := 0; END_VAR";
-        let content = SPou::init("program_0", "program", declaration)
+        let content = SPou::init_str("program_0", "program", declaration)
             .with_fbd(vec![
-                &SInVariable::id(0).with_expression("x"),
-                &SLabel::id(1).with_name("lbl").with_execution_id(0),
-                &SJump::id(2).with_name("lbl").with_execution_id(1).connect(0).negate(),
-                &SOutVariable::id(3).with_execution_id(2).with_expression("x").connect(4),
-                &SInVariable::id(4).with_expression("FALSE"),
+                Box::new(SInVariable::id(0).with_expression_str("x")),
+                Box::new(SLabel::id(1).with_name_str("lbl").with_execution_id(0)),
+                Box::new(SJump::id(2).with_name_str("lbl").with_execution_id(1).connect(0).negate()),
+                Box::new(SOutVariable::id(3).with_execution_id(2).with_expression_str("x").connect(4)),
+                Box::new(SInVariable::id(4).with_expression_str("FALSE")),
             ])
             .serialize();
 
@@ -201,13 +201,13 @@ mod tests {
     #[test]
     fn jump_and_label_converted_to_ast() {
         let declaration = "PROGRAM program_0 VAR x : BOOL := 0; END_VAR";
-        let content = SPou::init("program_0", "program", declaration)
+        let content = SPou::init_str("program_0", "program", declaration)
             .with_fbd(vec![
-                &SInVariable::id(0).with_expression("x"),
-                &SLabel::id(1).with_name("lbl").with_execution_id(0),
-                &SJump::id(2).with_name("lbl").with_execution_id(1).connect(0),
-                &SOutVariable::id(3).with_execution_id(2).with_expression("x").connect(4),
-                &SInVariable::id(4).with_expression("FALSE"),
+                Box::new(SInVariable::id(0).with_expression_str("x")),
+                Box::new(SLabel::id(1).with_name_str("lbl").with_execution_id(0)),
+                Box::new(SJump::id(2).with_name_str("lbl").with_execution_id(1).connect(0)),
+                Box::new(SOutVariable::id(3).with_execution_id(2).with_expression_str("x").connect(4)),
+                Box::new(SInVariable::id(4).with_expression_str("FALSE")),
             ])
             .serialize();
 
@@ -220,13 +220,13 @@ mod tests {
     #[test]
     fn unconnected_jump_generated_as_empty_statement() {
         let declaration = "PROGRAM program_0 VAR x : BOOL := 0; END_VAR";
-        let content = SPou::init("program_0", "program", declaration)
+        let content = SPou::init_str("program_0", "program", declaration)
             .with_fbd(vec![
-                &SInVariable::id(0).with_expression("x"),
-                &SLabel::id(1).with_name("lbl").with_execution_id(0),
-                &SJump::id(2).with_name("lbl").with_execution_id(1),
-                &SOutVariable::id(3).with_execution_id(2).with_expression("x").connect(4),
-                &SInVariable::id(4).with_expression("FALSE"),
+                Box::new(SInVariable::id(0).with_expression_str("x")),
+                Box::new(SLabel::id(1).with_name_str("lbl").with_execution_id(0)),
+                Box::new(SJump::id(2).with_name_str("lbl").with_execution_id(1)),
+                Box::new(SOutVariable::id(3).with_execution_id(2).with_expression_str("x").connect(4)),
+                Box::new(SInVariable::id(4).with_expression_str("FALSE")),
             ])
             .serialize();
 
@@ -238,13 +238,13 @@ mod tests {
 
     #[test]
     fn unnamed_controls() {
-        let content = SPou::init("program_0", "program", "PROGRAM program_0")
+        let content = SPou::init_str("program_0", "program", "PROGRAM program_0")
             .with_fbd(vec![
-                &SInVariable::id(0).with_expression("x"),
-                &SLabel::id(1).with_execution_id(0),
-                &SJump::id(2).with_execution_id(1).connect(0),
-                &SOutVariable::id(3).with_execution_id(2).with_expression("x").connect(4),
-                &SInVariable::id(4).with_expression("FALSE"),
+                Box::new(SInVariable::id(0).with_expression_str("x")),
+                Box::new(SLabel::id(1).with_execution_id(0)),
+                Box::new(SJump::id(2).with_execution_id(1).connect(0)),
+                Box::new(SOutVariable::id(3).with_execution_id(2).with_expression_str("x").connect(4)),
+                Box::new(SInVariable::id(4).with_expression_str("FALSE")),
             ])
             .serialize();
 

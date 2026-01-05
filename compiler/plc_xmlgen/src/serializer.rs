@@ -245,6 +245,10 @@ impl SOutVariable {
         self
     }
 
+    pub fn connect_name_str(self, ref_local_id: i32, name: &'static str) -> Self {
+        self.connect_name(ref_local_id, name.to_string())
+    }    
+
     pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
     }
@@ -258,6 +262,10 @@ impl SInOutVariable {
     pub fn with_expression(self, expression: String) -> Self {
         self.child(&SExpression::expression(expression))
     }
+
+    pub fn with_expression_str(self, expression: &'static str) -> Self {
+        self.with_expression(expression.to_string())
+    }    
 }
 
 impl SReturn {
@@ -330,6 +338,10 @@ impl SBlock {
         self.attribute("typeName".to_string(), name)
     }
 
+    pub fn with_name_str(self, name: &'static str) -> Self {
+        self.attribute("typeName".to_string(), name.to_string())
+    }    
+
     pub fn with_input(self, variables: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SInputVariables::new().children(variables))
     }
@@ -396,6 +408,10 @@ impl SConnector {
         self.attribute("name".to_string(), name)
     }
 
+    pub fn with_name_str(self, name: &'static str) -> Self {
+        self.with_name(name.to_string())
+    }    
+
     pub fn connect(self, ref_local_id: i32) -> Self {
         self.child(&SConnectionPointIn::new().child(&SConnection::new().with_ref_id(ref_local_id).close()))
     }
@@ -406,6 +422,10 @@ impl SContinuation {
         self.attribute("name".to_string(), name)
     }
 
+    pub fn with_name_str(self, name: &'static str) -> Self {
+        self.with_name(name.to_string())
+    }    
+
     pub fn connect_out(self, ref_local_id: i32) -> Self {
         self.child(&SConnectionPointOut::new().child(&SConnection::new().with_ref_id(ref_local_id).close()))
     }
@@ -415,12 +435,20 @@ impl SLabel {
     pub fn with_name(self, name: String) -> Self {
         self.attribute("label".to_string(), name)
     }
+
+    pub fn with_name_str(self, name: &'static str) -> Self {
+        self.with_name(name.to_string())
+    }
 }
 
 impl SJump {
     pub fn with_name(self, name: String) -> Self {
         self.attribute("label".to_string(), name)
     }
+
+    pub fn with_name_str(self, name: &'static str) -> Self {
+        self.with_name(name.to_string())
+    }    
 
     pub fn connect(self, ref_local_id: i32) -> Self {
         self.child(&SConnectionPointIn::new().child(&SConnection::new().with_ref_id(ref_local_id).close()))
@@ -437,6 +465,10 @@ impl SAction {
     pub fn name(name: String) -> Self {
         Self::new().attribute("name".to_string(), name)
     }
+
+    pub fn name_str(name: &'static str) -> Self {
+        Self::name(name.to_string())
+    }    
 
     pub fn with_fbd(self, children: Vec<Box<dyn IntoNode>>) -> Self {
         self.child(&SBody::new().child(&YFbd::new().children(children)))
