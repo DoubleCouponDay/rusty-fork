@@ -957,6 +957,7 @@ impl GeneratedProject {
                 }
                 Ok(output_location)
             }
+            FormatOption::XML => Ok(output_location),
             _ => {
                 // Only initialize a linker if we need to use it
                 let target_triple = self.target.get_target_triple();
