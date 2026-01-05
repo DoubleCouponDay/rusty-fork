@@ -5,10 +5,7 @@
 //!
 
 use std::{
-    collections::HashMap,
-    env, fs,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex, RwLock},
+    collections::HashMap, env, fs, path::{Path, PathBuf}, sync::{Arc, Mutex, RwLock}
 };
 
 use ast::{ast::CompilationUnit, provider::IdProvider};
