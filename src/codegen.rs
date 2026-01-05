@@ -442,7 +442,7 @@ impl<'ink> GeneratedModule<'ink> {
     fn persist_to_xml(&self, output: PathBuf, annotated_project: &Vec<&CompilationUnit>, compilation_options: &GenerationParameters) -> Result<PathBuf, CodegenError> {
         let schema_path: &'static str;
 
-        let mut template: Node = if compilation_options.output_xml_omron {
+        let template: Node = if compilation_options.output_xml_omron {
             schema_path = OMRON_SCHEMA;
             get_omron_template()
         }
