@@ -185,9 +185,6 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
 }
 
 pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Error> {
-    let printline = format!("write_xml_file: {:?}", output_path);
-    println!("{}", printline);
-
     let file = File::create(output_path)?;
 
     let mut writer = EmitterConfig::new()
