@@ -225,7 +225,14 @@ pub fn copy_xmlfiles_to_output(temp_paths: Vec<&Path>, output_path: PathBuf) -> 
     if temp_paths.len() == 0 {
         return Ok(output_path);
     }
-    let last_xml_file = temp_paths.last().unwrap(); //grab the file which has the right name, although both xml duplicates have the same content
-    copy(last_xml_file, &output_path)?;
+    let xml_file = temp_paths.iter().find(|a| { //grab the file which has the right name, although both xml duplicates have the same content
+        if let Some(ext) = a.extension() && ext.to_ascii_uppercase() == "XML" {
+            return true;
+        }
+        return false;
+    })
+    .unwrap(); 
+
+    copy(xml_file, &output_path)?;
     Ok(output_path)
 }
