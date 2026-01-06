@@ -225,9 +225,10 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
 }
 
 pub fn copy_xmlfiles_to_output(temp_paths: Vec<&Path>, output_path: PathBuf) -> Result<PathBuf, Error> {
-    for a in 0..temp_paths.len() {
-        let current = temp_paths[a];
-        copy(current, &output_path)?;
+    if temp_paths.len() == 0 {
+        return Ok(output_path);
     }
+    let last_xml_file = temp_paths.last().unwrap(); //grab the file which has the right name, although both xml duplicates have the same content
+    copy(last_xml_file, &output_path)?;
     Ok(output_path)
 }
