@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fs::File, io::Error, path::{Path, PathBuf}};
+use std::{borrow::Cow, fs::{copy, File}, io::Error, path::{Path, PathBuf}};
 
 use super::serializer::*;
 use plc_ast::ast::*;
@@ -222,4 +222,12 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
         return Err(Error::new(std::io::ErrorKind::Other, a));
     });
     Ok(())
+}
+
+pub fn copy_xmlfiles_to_output(temp_paths: Vec<&Path>, output_path: PathBuf) -> Result<PathBuf, Error> {
+    for a in 0..temp_paths.len() {
+        let current = temp_paths[a];
+        copy(current, &output_path)?;
+    }
+    Ok(output_path)
 }

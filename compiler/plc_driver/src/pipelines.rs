@@ -23,7 +23,7 @@ use participant::{PipelineParticipant, PipelineParticipantMut};
 use plc::{
     codegen::{CodegenContext, GeneratedModule},
     index::{indexer, FxIndexSet, Index},
-    linker::LinkerType,
+    linker::{LinkerType},
     lowering::{
         calls::AggregateTypeLowerer, polymorphism::PolymorphicCallLowerer, property::PropertyLowerer,
         vtable::VirtualTableGenerator, InitVisitor,
@@ -43,6 +43,7 @@ use plc_diagnostics::{
 };
 use plc_index::GlobalContext;
 use plc_lowering::inheritance::InheritanceLowerer;
+use plc_xmlgen::xml_gen::copy_xmlfiles_to_output;
 use project::{
     object::Object,
     project::{LibraryInformation, Project},
@@ -957,7 +958,6 @@ impl GeneratedProject {
                 }
                 Ok(output_location)
             }
-            FormatOption::XML => Ok(output_location),
             _ => {
                 // Only initialize a linker if we need to use it
                 let target_triple = self.target.get_target_triple();
@@ -1023,6 +1023,14 @@ impl GeneratedProject {
                     FormatOption::Object | FormatOption::Relocatable => {
                         linker.build_relocatable(output_location).map_err(Into::into)
                     }
+                    FormatOption::XML => {
+                        let paths: Vec<&Path> = self.objects.iter().map(|a| a.get_path()).collect();
+
+                        match copy_xmlfiles_to_output(paths, output_location) {
+                            Ok(path) => Ok(path),
+                            Err(error) => Err(Diagnostic::new(error.to_string())),
+                        }
+                    },
                     _ => unreachable!("Already handled in previous match"),
                 }
             }
