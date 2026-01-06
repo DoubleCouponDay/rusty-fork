@@ -194,6 +194,7 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
         .perform_indent(true)
         .create_writer(file);
 
+    //open the element
     let start = XmlEvent::StartElement {
         name: Name::from(treenode.name.as_str()),
         attributes: treenode.attributes.iter().map(|a| 
@@ -209,18 +210,16 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
         return Err(Error::new(std::io::ErrorKind::Other, a));
     });
 
-    if treenode.closed {
-        let end = XmlEvent::end_element();
-
-        let _ = writer.write(end).or_else(|a| {
-            return Err(Error::new(std::io::ErrorKind::Other, a));
-        });
-        return Ok(())
-    }
-
+    //recurse through children
     for item in treenode.children.drain(0..) {
         write_xml_file(output_path, item)?;
     }
 
+    //close the element
+    let end = XmlEvent::end_element();
+
+    let _ = writer.write(end).or_else(|a| {
+        return Err(Error::new(std::io::ErrorKind::Other, a));
+    });
     Ok(())
 }
