@@ -7,3 +7,4 @@ edition = "2024"
 plc_ast = { path = "../plc_ast" }
 xml = "1.0.0"
 rustc-hash.workspace = true
+chrono = "0.4"
