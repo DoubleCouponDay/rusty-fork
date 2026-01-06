@@ -407,6 +407,8 @@ impl<'ink> GeneratedModule<'ink> {
         compilation_options: &GenerationParameters
     ) -> Result<PathBuf, CodegenError> {
         let output = Self::get_output_file(output_dir, output_name, target);
+        let test1 = format!("output_name: {}, get_output_file: {:?}", &output_name, &output);
+        println!("{}", &test1);
         //ensure output exists
         if let Some(parent) = output.parent() {
             std::fs::create_dir_all(parent)?;
