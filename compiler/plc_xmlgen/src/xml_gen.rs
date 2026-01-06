@@ -2,7 +2,7 @@ use std::{borrow::Cow, fs::{copy, File}, io::Error, path::{Path, PathBuf}};
 
 use super::serializer::*;
 use plc_ast::ast::*;
-use xml::{attribute::Attribute, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig};
+use xml::{EmitterConfig, EventWriter, attribute::Attribute, name::Name, namespace::Namespace, writer::XmlEvent};
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -50,6 +50,8 @@ pub fn get_omron_template() -> Node {
 pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
 
 pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, mut output_root: Node) -> Result<(), Error> {
+    println!("parse_project_into_nodetree: {}", &output_root.name);
+
     for a in 0..units.len() {
         let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
@@ -84,6 +86,8 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
 
     let globals_root = maybe_globals_root.ok_or(())?;
+
+    println!("globals_root: {}", &globals_root.name);
 
     //create the 4 destinations for <GlobalVars>
     let mut constant_retain_globals = SGlobalVars::new()
@@ -184,20 +188,29 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     return Ok(());
 }
 
-pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Error> {
+pub fn write_xml_file(output_path: &Path, treenode: Node) -> Result<(), Error> {
     let file = File::create(output_path)?;
 
     let mut writer = EmitterConfig::new()
         .perform_indent(true)
         .create_writer(file);
 
+    return recurse_write_xml(&mut writer, output_path, treenode);
+}
+
+fn recurse_write_xml(writer: &mut EventWriter<File>, output_path: &Path, mut treenode: Node) -> Result<(), Error> {
+    println!("write_xml_file treenode.name: {}", &treenode.name);
+
     //open the element
     let start = XmlEvent::StartElement {
         name: Name::from(treenode.name.as_str()),
-        attributes: treenode.attributes.iter().map(|a| 
+        attributes: treenode.attributes.iter().map(|a| {
+            println!("write_xml_file attribute.name: {}", &a.0.as_str());
+            
             Attribute {
                 name: Name::from(a.0.as_str()),
                 value: a.1.as_str()
+            }
         })
         .collect(), 
         namespace: Cow::Owned(Namespace::empty())
@@ -209,7 +222,7 @@ pub fn write_xml_file(output_path: &Path, mut treenode: Node) -> Result<(), Erro
 
     //recurse through children
     for item in treenode.children.drain(0..) {
-        write_xml_file(output_path, item)?;
+        recurse_write_xml(writer, output_path, item)?;
     }
 
     //close the element
