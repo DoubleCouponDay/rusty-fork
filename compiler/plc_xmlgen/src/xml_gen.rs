@@ -106,7 +106,11 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
         
         for c in 0..current_global.variables.len() {
             let current_variable = &current_global.variables[c];
-            let network_publish = current_global.kind.to_string();
+
+            let network_publish = match current_global.kind {
+                VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
+                _ => NetworkPublishMode::DoNotPublish.to_string()
+            };
 
             let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
                 .attribute("networkPublish".to_string(), network_publish);
