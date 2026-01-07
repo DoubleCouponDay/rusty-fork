@@ -476,21 +476,40 @@ pub enum VariableBlockType {
     Temp,
     Input(ArgumentProperty),
     Output,
-    Global,
+    Global(NetworkPublishMode),
     InOut,
-    External,
+    External
+}
+
+#[derive(Debug, Copy, PartialEq, Eq, Clone, Serialize)]
+pub enum NetworkPublishMode {
+    DoNotPublish,
+    PublishOnly,
+    Input,
+    Output
 }
 
 impl Display for VariableBlockType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {        
         match self {
-            VariableBlockType::Local => write!(f, "Local"),
-            VariableBlockType::Temp => write!(f, "Temp"),
-            VariableBlockType::Input(_) => write!(f, "Input"),
-            VariableBlockType::Output => write!(f, "Output"),
-            VariableBlockType::Global => write!(f, "Global"),
-            VariableBlockType::InOut => write!(f, "InOut"),
-            VariableBlockType::External => write!(f, "External"),
+            VariableBlockType::Local => write!(f, "local"),
+            VariableBlockType::Temp => write!(f, "temp"),
+            VariableBlockType::Input(_) => write!(f, "input"),
+            VariableBlockType::Output => write!(f, "output"),
+            VariableBlockType::Global(network) => write!(f, "{}({})", "global", network.to_string()),
+            VariableBlockType::InOut => write!(f, "inout"),
+            VariableBlockType::External => write!(f, "external")
+        }
+    }
+}
+
+impl Display for NetworkPublishMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {        
+        match self {
+            NetworkPublishMode::DoNotPublish => write!(f, "DoNotPublish"),
+            NetworkPublishMode::PublishOnly => write!(f, "PublishOnly"),
+            NetworkPublishMode::Input => write!(f, "Input"),
+            NetworkPublishMode::Output => write!(f, "Output")
         }
     }
 }
@@ -514,7 +533,7 @@ pub struct VariableBlock {
 
 impl VariableBlock {
     pub fn global() -> Self {
-        VariableBlock::default().with_block_type(VariableBlockType::Global)
+        VariableBlock::default().with_block_type(VariableBlockType::Global(NetworkPublishMode::DoNotPublish))
     }
 
     pub fn with_block_type(mut self, block_type: VariableBlockType) -> Self {
@@ -1602,7 +1621,7 @@ impl Operator {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{ArgumentProperty, DeclarationKind, PouType, VariableBlockType};
+    use crate::ast::{ArgumentProperty, DeclarationKind, NetworkPublishMode, PouType, VariableBlockType};
 
     #[test]
     fn display_pou() {
@@ -1629,7 +1648,10 @@ mod tests {
         assert_eq!(VariableBlockType::Input(ArgumentProperty::ByVal).to_string(), "Input");
         assert_eq!(VariableBlockType::Input(ArgumentProperty::ByRef).to_string(), "Input");
         assert_eq!(VariableBlockType::Output.to_string(), "Output");
-        assert_eq!(VariableBlockType::Global.to_string(), "Global");
+        assert_eq!(VariableBlockType::Global(NetworkPublishMode::DoNotPublish).to_string(), "global(DoNotPublish)");
+        assert_eq!(VariableBlockType::Global(NetworkPublishMode::PublishOnly).to_string(), "global(PublishOnly)");
+        assert_eq!(VariableBlockType::Global(NetworkPublishMode::Input).to_string(), "global(Input)");
+        assert_eq!(VariableBlockType::Global(NetworkPublishMode::Output).to_string(), "global(Output)");
         assert_eq!(VariableBlockType::InOut.to_string(), "InOut");
     }
 }

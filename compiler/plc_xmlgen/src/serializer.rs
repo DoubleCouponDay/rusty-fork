@@ -475,23 +475,32 @@ impl SAction {
     }
 }
 
+impl SOmronVariable {
+    pub fn with_name(self, name: String) -> Self {
+        self.attribute("name".to_string(), name)
+    }
+}
+
+impl SOmronData {
+
+}
+
 //Omron specific xml
 newtype_impl!(SGlobalNamespace, GLOBAL_NAMESPACE, false);
 newtype_impl!(SInstances, INSTANCES, false);
 newtype_impl!(SConfiguration, CONFIGURATION, false);
 newtype_impl!(SResource, RESOURCE, false);
-newtype_impl!(SGlobalVars, GLOBAL_VARS, false);
-newtype_impl!(SType, TYPE, false);
-newtype_impl!(STypeName, TYPE_NAME, false);
-newtype_impl!(SInitialValue, INITIAL_VALUE, false);
-newtype_impl!(SSimpleValue, SIMPLE_VALUE, false);
+newtype_impl!(SGlobalVars, "GlobalVars", false);
+newtype_impl!(SType, "Type", false);
+newtype_impl!(STypeName, "TypeName", false);
+newtype_impl!(SInitialValue, "InitialValue", false);
+newtype_impl!(SSimpleValue, "SimpleValue", false);
+newtype_impl!(SOmronVariable, "Variable", false);
+newtype_impl!(SOmronAddData, "AddData", false);
+newtype_impl!(SOmronData, "Data", false);
+newtype_impl!(SOmronGlobalVariableAdditionalProperties, "GlobalVariableAdditionalProperties", false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";
 pub const CONFIGURATION: &'static str = "Configuration";
 pub const RESOURCE: &'static str = "Resource";
-pub const GLOBAL_VARS: &'static str = "GlobalVars";
-pub const TYPE: &'static str = "Type";
-pub const TYPE_NAME: &'static str = "TypeName";
-pub const INITIAL_VALUE: &'static str = "InitialValue";
-pub const SIMPLE_VALUE: &'static str = "SimpleValue";

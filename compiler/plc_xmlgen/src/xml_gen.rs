@@ -106,12 +106,17 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
         
         for c in 0..current_global.variables.len() {
             let current_variable = &current_global.variables[c];
+            let network_publish = current_global.kind.to_string();
 
-            let data_node = SData::new() //<Data>
+            let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
+                .attribute("networkPublish".to_string(), network_publish);
+
+            let data_node = SOmronData::new() //<Data>
                 .attribute_str("name", schema_path)
-                .attribute_str("handleUnknown", "discard");
+                .attribute_str("handleUnknown", "discard")
+                .child(&additional_property_node);
 
-            let adddata_node = SAddData::new() //<AddData>
+            let adddata_node = SOmronAddData::new() //<AddData>
                 .child(&data_node);
 
             let maybe_typename = current_variable.data_type_declaration.get_name();
@@ -127,7 +132,8 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
             let type_node = SType::new() //<TypeName>
                 .child(&typename_node);
 
-            let mut new_var = SVariable::new() //<Variable>
+            let mut new_var = SOmronVariable::new() //<Variable>
+                .with_name(current_variable.name.clone())
                 .child(&adddata_node)
                 .child(&type_node);
 
