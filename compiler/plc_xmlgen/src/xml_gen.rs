@@ -133,7 +133,7 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
             let typename_node = STypeName::new() //<TypeName>
                 .content(typename);
 
-            let type_node = SType::new() //<TypeName>
+            let type_node = SType::new() //<Type>
                 .child(&typename_node);
 
             let mut new_var = SOmronVariable::new() //<Variable>
@@ -232,6 +232,7 @@ fn recurse_write_xml(writer: &mut EventWriter<File>, output_path: &PathBuf, mut 
     let _ = writer.write(start).or_else(|a| {
         return Err(Error::new(std::io::ErrorKind::Other, a));
     });
+
 
     //recurse through children
     for item in treenode.children.drain(0..) {
