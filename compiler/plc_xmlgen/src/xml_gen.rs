@@ -57,38 +57,49 @@ pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
         let _ = parse_globals(current_unit, unit_name, schema_path, &mut output_root);
-        let _ = parse_types(current_unit, unit_name, schema_path, &mut output_root);
+        let _ = parse_custom_types(current_unit, unit_name, schema_path, &mut output_root);
         let _ = parse_pous(current_unit, unit_name, schema_path, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
 }
 
-fn parse_types(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
-    //Structs
+fn parse_custom_types(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+    let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
+    let types_root = maybe_types_root.ok_or(())?;    
+    let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
+    let global_root = maybe_global_root.ok_or(())?;
+
+    for b in 0..current_unit.user_types.len() {
+        let current_global = &current_unit.global_vars[b];
 
 
-    //Enums
+        //Structs
 
 
-    //Unions
+        //Enums
 
 
+        //Unions
+
+    }
     Ok(())
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
-    //Functions
+
+
+        //Functions
 
 
 
-    //Function blocks
+        //Function blocks
 
 
 
-    //Programs    
+        //Programs
 
-
+    
     Ok(())
 }
 
@@ -182,7 +193,6 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
         else {
             normal_globals = normal_globals.children(parsed_variables);
         }
-
     }
     
     //relinquish copies of the nodes into the tree

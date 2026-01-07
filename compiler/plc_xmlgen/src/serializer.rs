@@ -209,7 +209,7 @@ newtype_impl!(SAction, "action", false);
 newtype_impl!(SActions, "actions", false);
 newtype_impl!(SFileHeader, "FileHeader", false);
 newtype_impl!(SContentHeader, "ContentHeader", false);
-newtype_impl!(STypes, "Types", false);
+newtype_impl!(STypes, TYPES, false);
 
 pub trait SizedVariable: IntoNode + Sized {
 
@@ -504,3 +504,4 @@ pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";
 pub const CONFIGURATION: &'static str = "Configuration";
 pub const RESOURCE: &'static str = "Resource";
+pub const TYPES: &'static str = "Types";
