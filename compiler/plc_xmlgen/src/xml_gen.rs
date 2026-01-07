@@ -57,28 +57,38 @@ pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
         let _ = parse_globals(current_unit, unit_name, schema_path, &mut output_root);
-
-        //Structs
-
-
-        //Functions
-
-
-        //Enums
-
-
-        //Unions
-
-
-        //Function blocks
-
-
-        //Programs
-
-        
-
+        let _ = parse_types(current_unit, unit_name, schema_path, &mut output_root);
+        let _ = parse_pous(current_unit, unit_name, schema_path, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
+    Ok(())
+}
+
+fn parse_types(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+    //Structs
+
+
+    //Enums
+
+
+    //Unions
+
+
+    Ok(())
+}
+
+fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+    //Functions
+
+
+
+    //Function blocks
+
+
+
+    //Programs    
+
+
     Ok(())
 }
 
@@ -129,6 +139,8 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
                 continue;
             }
             let typename = maybe_typename.unwrap().to_string();
+
+            println!("{}", &typename);
 
             let typename_node = STypeName::new() //<TypeName>
                 .content(typename);
@@ -233,6 +245,13 @@ fn recurse_write_xml(writer: &mut EventWriter<File>, output_path: &PathBuf, mut 
         return Err(Error::new(std::io::ErrorKind::Other, a));
     });
 
+    if let Some(content) = &treenode.content && treenode.children.len() == 0 {
+        let content_event = XmlEvent::CData(content);
+
+        let _ = writer.write(content_event).or_else(|a| {
+            return Err(Error::new(std::io::ErrorKind::Other, a));
+        });
+    }
 
     //recurse through children
     for item in treenode.children.drain(0..) {
