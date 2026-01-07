@@ -229,11 +229,11 @@ fn update_generated_globals(unit: &mut CompilationUnit, mangled_globals: Vec<Var
     let mut block = if let Some(index) = unit
         .global_vars
         .iter()
-        .position(|block| block.kind == VariableBlockType::Global && block.location.is_builtin_internal())
+        .position(|block| matches!(block.kind, VariableBlockType::Global(_)) && block.location.is_builtin_internal())
     {
         unit.global_vars.remove(index)
     } else {
-        VariableBlock::default().with_block_type(VariableBlockType::Global)
+        VariableBlock::default().with_block_type(VariableBlockType::Global(crate::ast::NetworkPublishMode::DoNotPublish))
     };
     for var in mangled_globals {
         if !block.variables.contains(&var) {

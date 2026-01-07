@@ -4,11 +4,7 @@ use std::ops::Range;
 
 use plc_ast::{
     ast::{
-        AccessModifier, ArgumentProperty, AstFactory, AstNode, AstStatement, AutoDerefType, CompilationUnit,
-        ConfigVariable, DataType, DataTypeDeclaration, DeclarationKind, DirectAccessType, GenericBinding,
-        HardwareAccessType, Identifier, Implementation, Interface, LinkageType, PolymorphismMode, Pou,
-        PouType, PropertyBlock, PropertyImplementation, PropertyKind, ReferenceAccess, ReferenceExpr,
-        TypeNature, UserTypeDeclaration, Variable, VariableBlock, VariableBlockType,
+        AccessModifier, ArgumentProperty, AstFactory, AstNode, AstStatement, AutoDerefType, CompilationUnit, ConfigVariable, DataType, DataTypeDeclaration, DeclarationKind, DirectAccessType, GenericBinding, HardwareAccessType, Identifier, Implementation, Interface, LinkageType, NetworkPublishMode, PolymorphismMode, Pou, PouType, PropertyBlock, PropertyImplementation, PropertyKind, ReferenceAccess, ReferenceExpr, TypeNature, UserTypeDeclaration, Variable, VariableBlock, VariableBlockType
     },
     provider::IdProvider,
 };
@@ -1403,7 +1399,7 @@ fn parse_variable_block_type(lexer: &mut ParseSession) -> VariableBlockType {
         KeywordVarTemp => VariableBlockType::Temp,
         KeywordVarInput => VariableBlockType::Input(argument_property),
         KeywordVarOutput => VariableBlockType::Output,
-        KeywordVarGlobal => VariableBlockType::Global,
+        KeywordVarGlobal => VariableBlockType::Global(NetworkPublishMode::DoNotPublish),
         KeywordVarInOut => VariableBlockType::InOut,
         KeywordVarExternal => VariableBlockType::External,
         _ => VariableBlockType::Local,
