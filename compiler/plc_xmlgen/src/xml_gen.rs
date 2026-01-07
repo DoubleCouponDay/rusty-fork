@@ -57,31 +57,131 @@ pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
         let _ = parse_globals(current_unit, unit_name, schema_path, &mut output_root);
-        let _ = parse_custom_types(current_unit, unit_name, schema_path, &mut output_root);
+        let _ = parse_custom_types(current_unit, &mut output_root);
         let _ = parse_pous(current_unit, unit_name, schema_path, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
 }
 
-fn parse_custom_types(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
-    let types_root = maybe_types_root.ok_or(())?;    
+    let types_root: &mut Node = maybe_types_root.ok_or(())?;    
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
-    let global_root = maybe_global_root.ok_or(())?;
+    let global_root: &mut Node = maybe_global_root.ok_or(())?;
 
-    for b in 0..current_unit.user_types.len() {
-        let current_global = &current_unit.global_vars[b];
+    for a in 0..current_unit.user_types.len() {
+        let current_usertype = &current_unit.user_types[a];
 
+        let child_ready: Option<SDataTypeDecl> = match &current_usertype.data_type {
+            DataType::StructType { name, variables } => {
+                if name.is_none() { //every structure must have a name
+                    continue;
+                }
+                let unwrapped_name = name.clone().unwrap();
 
-        //Structs
+                let mut spec_node = SUserDefinedTypeSpec::new()
+                    .attribute_str("type", "StructTypeSpec");
 
+                let decl_node1 = SDataTypeDecl::new()
+                    .attribute(String::from("name"), unwrapped_name)
+                    .child(&spec_node);
 
-        //Enums
+                for b in 0..variables.len() {
+                    let current_variable = &variables[b];
+                    let maybe_typename = current_variable.data_type_declaration.get_name();
 
+                    if maybe_typename.is_none() { //every variable must have a type
+                        continue;
+                    }
+                    let typename = String::from(maybe_typename.unwrap());
 
-        //Unions
+                    let typename_node = STypeName::new()
+                        .content(typename);
 
+                    let type_node = SType::new()
+                        .child(&typename_node);
+
+                    let member_node = SMember::new()
+                        .attribute(String::from("name"), current_variable.name.clone())
+                        .child(&type_node);
+
+                    spec_node = spec_node.child(&member_node);
+                }
+                Some(decl_node1)
+            },
+            DataType::EnumType { name, numeric_type, elements } => {
+                if name.is_none() { //every structure must have a name
+                    continue;
+                }
+                let unwrapped_name = name.clone().unwrap();
+
+                let enumerated_items = match &elements.stmt {
+                    AstStatement::ReferenceExpr(reference_expr) => {
+                        if reference_expr.base.is_none() { //every item must have an AstNode
+                            continue;
+                        }
+                        let unwrapped_enum = &reference_expr.base.clone().unwrap();
+                        
+                        let enum_node = SEnumerator::new()
+                            .attribute_str("name", "");
+
+                        //find whether the enum item has an assignment or not
+                        println!("EnumType item: ", unwrapped_enum.stmt);
+
+                        match unwrapped_enum.stmt {
+                            AstStatement::EmptyStatement(empty_statement) => todo!(),
+                            AstStatement::DefaultValue(default_value) => todo!(),
+                            AstStatement::Literal(ast_literal) => todo!(),
+                            AstStatement::MultipliedStatement(multiplied_statement) => todo!(),
+                            AstStatement::ReferenceExpr(reference_expr) => todo!(),
+                            AstStatement::Identifier(_) => todo!(),
+                            AstStatement::Super(_) => todo!(),
+                            AstStatement::This => todo!(),
+                            AstStatement::DirectAccess(direct_access) => todo!(),
+                            AstStatement::HardwareAccess(hardware_access) => todo!(),
+                            AstStatement::BinaryExpression(binary_expression) => todo!(),
+                            AstStatement::UnaryExpression(unary_expression) => todo!(),
+                            AstStatement::ExpressionList(ast_nodes) => todo!(),
+                            AstStatement::ParenExpression(ast_node) => todo!(),
+                            AstStatement::RangeStatement(range_statement) => todo!(),
+                            AstStatement::VlaRangeStatement => todo!(),
+                            AstStatement::Assignment(assignment) => todo!(),
+                            AstStatement::OutputAssignment(assignment) => todo!(),
+                            AstStatement::RefAssignment(assignment) => todo!(),
+                            AstStatement::CallStatement(call_statement) => todo!(),
+                            AstStatement::ControlStatement(ast_control_statement) => todo!(),
+                            AstStatement::CaseCondition(ast_node) => todo!(),
+                            AstStatement::ExitStatement(_) => todo!(),
+                            AstStatement::ContinueStatement(_) => todo!(),
+                            AstStatement::ReturnStatement(return_statement) => todo!(),
+                            AstStatement::JumpStatement(jump_statement) => todo!(),
+                            AstStatement::LabelStatement(label_statement) => todo!(),
+                            AstStatement::AllocationStatement(allocation) => todo!(),
+                        }
+                    },
+                    AstStatement::ExpressionList(ast_nodes) => todo!(),
+                    _ => ()
+                };
+
+                let base_node = SBaseType::new()
+                    .content(numeric_type.clone());
+
+                let mut spec_node = SUserDefinedTypeSpec::new()
+                    .attribute_str("type", "EnumTypeWithNamedValueSpec");                
+
+                let mut decl_node2 = SDataTypeDecl::new()
+                    .attribute(String::from("name"), unwrapped_name)
+                    .child(&spec_node);
+
+                Some(decl_node2)
+            },
+            _ => None                                
+        };
+
+        if let Some(unwrapped_ready) = child_ready {
+            global_root.child_borrowed(&unwrapped_ready);
+        }        
     }
     Ok(())
 }
@@ -121,12 +221,12 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
     let mut normal_globals = SGlobalVars::new();
 
     //parse the unit into nodes
-    for b in 0..current_unit.global_vars.len() {
-        let current_global = &current_unit.global_vars[b];
+    for a in 0..current_unit.global_vars.len() {
+        let current_global = &current_unit.global_vars[a];
         let mut parsed_variables: Vec<Box<dyn IntoNode>> = Vec::with_capacity(current_global.variables.len());
-        
-        for c in 0..current_global.variables.len() {
-            let current_variable = &current_global.variables[c];
+
+        for b in 0..current_global.variables.len() {
+            let current_variable = &current_global.variables[b];
 
             let network_publish = match current_global.kind {
                 VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
@@ -178,6 +278,7 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
             parsed_variables.push(Box::new(new_var));
         }
 
+        //add globals to the correct element
         if current_global.constant && current_global.retain {
             constant_retain_globals = constant_retain_globals.children(parsed_variables);
         }

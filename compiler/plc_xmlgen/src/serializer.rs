@@ -499,6 +499,12 @@ newtype_impl!(SOmronVariable, "Variable", false);
 newtype_impl!(SOmronAddData, "AddData", false);
 newtype_impl!(SOmronData, "Data", false);
 newtype_impl!(SOmronGlobalVariableAdditionalProperties, "GlobalVariableAdditionalProperties", false);
+newtype_impl!(SDataTypeDecl, "DataTypeDecl", false);
+newtype_impl!(SDocumentation, "Documentation", false);
+newtype_impl!(SUserDefinedTypeSpec, "UserDefinedTypeSpec", false);
+newtype_impl!(SMember, "Member", false);
+newtype_impl!(SEnumerator, "Enumerator", false);
+newtype_impl!(SBaseType, "BaseType", false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";
