@@ -3,7 +3,7 @@ use std::{borrow::Cow, fs::{copy, File}, io::Error, path::{Path, PathBuf}};
 use super::serializer::*;
 use chrono::Local;
 use plc_ast::ast::*;
-use xml::{EmitterConfig, EventWriter, attribute::Attribute, name::Name, namespace::Namespace, writer::XmlEvent};
+use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -201,6 +201,16 @@ pub fn write_xml_file(output_path: &PathBuf, treenode: Node) -> Result<(), Error
     let mut writer = EmitterConfig::new()
         .perform_indent(true)
         .create_writer(file);
+
+    let top = XmlEvent::StartDocument {
+        encoding: Some("UTF-8"),
+        version: XmlVersion::Version10,
+        standalone: None
+    };
+
+    let _ = writer.write(top).or_else(|a| {
+        return Err(Error::new(std::io::ErrorKind::Other, a));
+    });    
 
     return recurse_write_xml(&mut writer, output_path, treenode);
 }
