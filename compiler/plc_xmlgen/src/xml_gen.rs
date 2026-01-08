@@ -213,7 +213,6 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
         .fold(false, |dupe_found, (_, group)| {
             if group.count() > 1 {
                 true
-
             } 
             
             else {
