@@ -207,18 +207,16 @@ struct NameAndInitialValue {
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
     let borrowed_variants = &mut enum_variants;
 
-    let duplicates_found = borrowed_variants.into_iter() 
+    let duplicates_found = borrowed_variants.iter() 
         .group_by(|a| a.initial_value.trim().parse::<i32>().expect("parsed integer"))
         .into_iter()
-        .fold(None, |a, (key, mut b)| {
-            let borrowed_b = &mut b;
+        .fold(None, |a, (key, b)| {
+            let items: Vec<_> = b.collect();
 
-            if borrowed_b.count() > 1 { //check if there are duplicate enum initial values
-                let first_dupe = borrowed_b.next().unwrap();
+            if items.len() > 1 {
+                let first_dupe = items[0]; // or &items[0], depending on what you need
                 Some((key, first_dupe))
-            } 
-            
-            else {
+            } else {
                 a
             }
         });
@@ -230,8 +228,10 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
         let mut increment = 0;
         
         for a in sliced {
-            a.initial_value = increment.to_string();
+            let mut numeric = a.initial_value.parse::<i32>().expect("parsed integer");
+            numeric += increment;
             increment += 1;
+            a.initial_value = numeric.to_string();
         }
     }
 
