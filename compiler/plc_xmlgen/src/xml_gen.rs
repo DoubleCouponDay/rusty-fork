@@ -81,11 +81,9 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
                 let unwrapped_name = name.clone().unwrap();
 
                 let mut spec_node = SUserDefinedTypeSpec::new()
-                    .attribute_str("type", "StructTypeSpec");
+                    .attribute_str("xsi:type", "StructTypeSpec");
 
-                let decl_node1 = SDataTypeDecl::new()
-                    .attribute(String::from("name"), unwrapped_name)
-                    .child(&spec_node);
+
 
                 for b in 0..variables.len() {
                     let current_variable = &variables[b];
@@ -108,7 +106,18 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
 
                     spec_node = spec_node.child(&member_node);
                 }
-                Some(decl_node1)
+
+                if spec_node.inner().children.len() == 0 { //structs must have <Member> elements, otherwise delete it
+                    None
+                }
+
+                else {
+                    let decl_node1 = SDataTypeDecl::new()
+                        .attribute(String::from("name"), unwrapped_name)
+                        .child(&spec_node);
+
+                    Some(decl_node1)
+                }
             },
             DataType::EnumType { name, numeric_type, elements } => { //ENUM
                 if name.is_none() { //every structure must have a name
@@ -131,10 +140,12 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
                 let base_node = SBaseType::new()
                     .content(numeric_type.clone());
 
+                let formatted = format_enum_initials(enumerators);
+
                 let spec_node = SUserDefinedTypeSpec::new()
-                    .attribute_str("type", "EnumTypeWithNamedValueSpec")
-                    .child(&base_node)
-                    .children(enumerators);
+                    .attribute_str("xsi:type", "EnumTypeWithNamedValueSpec")                    
+                    .children(formatted)
+                    .child(&base_node); //<BaseType> element must be declared below all the <Member> elements, apparently
 
                 let decl_node2 = SDataTypeDecl::new()
                     .attribute(String::from("name"), unwrapped_enum_type)
@@ -152,7 +163,7 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
     Ok(())
 }
 
-fn parse_enum_expression(input: &Assignment) -> Box<dyn IntoNode> {
+fn parse_enum_expression(input: &Assignment) -> NameAndInitialValue {
     let enum_variant_name = match &input.left.stmt {
         AstStatement::ReferenceExpr(reference_exp) => {
             match &reference_exp.access {
@@ -181,10 +192,26 @@ fn parse_enum_expression(input: &Assignment) -> Box<dyn IntoNode> {
         other => panic!("Expected LiteralInteger or BinaryExpression. Instead got: {:?}", other)
     };
 
-    Box::new(
-        SEnumerator::new()
-            .attribute(String::from("name"), enum_variant_name)
-            .attribute(String::from("value"), enum_variant_initialiser))
+    NameAndInitialValue {name: enum_variant_name, initial_value: enum_variant_initialiser}
+}
+
+struct NameAndInitialValue {
+    pub name: String,
+    pub initial_value: String
+}
+
+fn  format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
+    let folded: Option<String> = enum_variants.drain(..).map(|a| {
+        if a.is_none() {
+            b.initial_value
+        }
+        
+        else if let Some(unwrapped_a) = a && unwrapped_a.initial_value == b.initial_value {
+            Some(b.initial_value)
+        }
+    });
+
+    todo!()
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
