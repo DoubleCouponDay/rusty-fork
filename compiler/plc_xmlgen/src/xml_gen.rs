@@ -73,8 +73,8 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
     for a in 0..current_unit.user_types.len() {
         let current_usertype = &current_unit.user_types[a];
 
-        let child_ready: Option<SDataTypeDecl> = match &current_usertype.data_type {
-            DataType::StructType { name, variables } => {
+        let customtype_ready: Option<SDataTypeDecl> = match &current_usertype.data_type {
+            DataType::StructType { name, variables } => { //STRUCT
                 if name.is_none() { //every structure must have a name
                     continue;
                 }
@@ -110,68 +110,35 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
                 }
                 Some(decl_node1)
             },
-            DataType::EnumType { name, numeric_type, elements } => {
+            DataType::EnumType { name, numeric_type, elements } => { //ENUM
                 if name.is_none() { //every structure must have a name
                     continue;
                 }
-                let unwrapped_name = name.clone().unwrap();
+                let unwrapped_enum_type = name.clone().unwrap();
+                println!("Enum Type: {}", &unwrapped_enum_type);
 
-                let enumerated_items = match &elements.stmt {
-                    AstStatement::ReferenceExpr(reference_expr) => {
-                        if reference_expr.base.is_none() { //every item must have an AstNode
-                            continue;
+                let enumerators = match &elements.stmt {
+                    AstStatement::ExpressionList(ast_nodes) => ast_nodes.iter().map(|a| {
+                        match &a.stmt {
+                            AstStatement::Assignment(assignment) => parse_enum_expression(assignment),
+                            other => panic!("Expected Assignment. Instead got: {:?}", other)
                         }
-                        let unwrapped_enum = &reference_expr.base.clone().unwrap();
-                        
-                        let enum_node = SEnumerator::new()
-                            .attribute_str("name", "");
+                    }).collect(),
 
-                        //find whether the enum item has an assignment or not
-                        println!("EnumType item: ", unwrapped_enum.stmt);
-
-                        match unwrapped_enum.stmt {
-                            AstStatement::EmptyStatement(empty_statement) => todo!(),
-                            AstStatement::DefaultValue(default_value) => todo!(),
-                            AstStatement::Literal(ast_literal) => todo!(),
-                            AstStatement::MultipliedStatement(multiplied_statement) => todo!(),
-                            AstStatement::ReferenceExpr(reference_expr) => todo!(),
-                            AstStatement::Identifier(_) => todo!(),
-                            AstStatement::Super(_) => todo!(),
-                            AstStatement::This => todo!(),
-                            AstStatement::DirectAccess(direct_access) => todo!(),
-                            AstStatement::HardwareAccess(hardware_access) => todo!(),
-                            AstStatement::BinaryExpression(binary_expression) => todo!(),
-                            AstStatement::UnaryExpression(unary_expression) => todo!(),
-                            AstStatement::ExpressionList(ast_nodes) => todo!(),
-                            AstStatement::ParenExpression(ast_node) => todo!(),
-                            AstStatement::RangeStatement(range_statement) => todo!(),
-                            AstStatement::VlaRangeStatement => todo!(),
-                            AstStatement::Assignment(assignment) => todo!(),
-                            AstStatement::OutputAssignment(assignment) => todo!(),
-                            AstStatement::RefAssignment(assignment) => todo!(),
-                            AstStatement::CallStatement(call_statement) => todo!(),
-                            AstStatement::ControlStatement(ast_control_statement) => todo!(),
-                            AstStatement::CaseCondition(ast_node) => todo!(),
-                            AstStatement::ExitStatement(_) => todo!(),
-                            AstStatement::ContinueStatement(_) => todo!(),
-                            AstStatement::ReturnStatement(return_statement) => todo!(),
-                            AstStatement::JumpStatement(jump_statement) => todo!(),
-                            AstStatement::LabelStatement(label_statement) => todo!(),
-                            AstStatement::AllocationStatement(allocation) => todo!(),
-                        }
-                    },
-                    AstStatement::ExpressionList(ast_nodes) => todo!(),
-                    _ => ()
+                    AstStatement::Assignment(assignment) => vec![parse_enum_expression(assignment)],
+                    other => panic!("Expected ExpressionList or Assignment. Instead got: {:?}", other)
                 };
 
                 let base_node = SBaseType::new()
                     .content(numeric_type.clone());
 
-                let mut spec_node = SUserDefinedTypeSpec::new()
-                    .attribute_str("type", "EnumTypeWithNamedValueSpec");                
+                let spec_node = SUserDefinedTypeSpec::new()
+                    .attribute_str("type", "EnumTypeWithNamedValueSpec")
+                    .child(&base_node)
+                    .children(enumerators);
 
-                let mut decl_node2 = SDataTypeDecl::new()
-                    .attribute(String::from("name"), unwrapped_name)
+                let decl_node2 = SDataTypeDecl::new()
+                    .attribute(String::from("name"), unwrapped_enum_type)
                     .child(&spec_node);
 
                 Some(decl_node2)
@@ -179,11 +146,46 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
             _ => None                                
         };
 
-        if let Some(unwrapped_ready) = child_ready {
+        if let Some(unwrapped_ready) = customtype_ready {
             global_root.child_borrowed(&unwrapped_ready);
         }        
     }
     Ok(())
+}
+
+fn parse_enum_expression(input: &Assignment) -> Box<dyn IntoNode> {
+    let enum_variant_name = match &input.left.stmt {
+        AstStatement::ReferenceExpr(reference_exp) => {
+            match &reference_exp.access {
+                ReferenceAccess::Member(member_exp) => {
+                    match &member_exp.stmt {
+                        AstStatement::Identifier(name) => {
+                            name.clone()
+                        }
+                        other => panic!("Expected identifier. Instead got: {:?}", other)
+                    }
+                }
+                other => panic!("Expected Member. Instead got: {:?}", other)
+            }
+        },
+        other => panic!("Expected ReferenceExpr. Instead got: {:?}", other)
+    };
+
+    let enum_variant_initialiser = match &input.right.stmt {
+        AstStatement::Literal(literal) => literal.to_string(),
+        AstStatement::BinaryExpression(binary_exp) => {
+            match &binary_exp.right.stmt {
+                AstStatement::Literal(literal) => literal.to_string(),
+                other => panic!("Expected Literal. Instead got: {:?}", other)
+            }
+        }
+        other => panic!("Expected LiteralInteger or BinaryExpression. Instead got: {:?}", other)
+    };
+
+    Box::new(
+        SEnumerator::new()
+            .attribute(String::from("name"), enum_variant_name)
+            .attribute(String::from("value"), enum_variant_initialiser))
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
@@ -250,8 +252,6 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
                 continue;
             }
             let typename = maybe_typename.unwrap().to_string();
-
-            println!("{}", &typename);
 
             let typename_node = STypeName::new() //<TypeName>
                 .content(typename);
