@@ -229,16 +229,14 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
         }
     }
 
-    let output: Vec<Box<dyn IntoNode>> = enum_variants.drain(..).map(|a| {
+    enum_variants.drain(..).map(|a| {
             let mapped: Box<dyn IntoNode> = Box::new(SEnumerator::new()
                 .attribute(String::from("name"), a.name)
                 .attribute(String::from("value"), a.initial_value));
 
             mapped
         })
-        .collect();
-
-    output
+        .collect()
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
