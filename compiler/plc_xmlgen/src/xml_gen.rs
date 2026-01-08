@@ -204,40 +204,29 @@ struct NameAndInitialValue {
     pub initial_value: String
 }
 
-struct IndexAndValue<'lifetime_a> {
-    pub index: u32,
-    pub value: &'lifetime_a NameAndInitialValue
-}
-
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
     let borrowed_variants = &mut enum_variants;
 
     let duplicates_found = borrowed_variants.iter() 
         .group_by(|a| a.initial_value.trim().parse::<i32>().expect("parsed integer")) //enums can have negative integer values
         .into_iter()
-        .fold(None, |a, (key, b)| {
-            let items: Vec<_> = b.collect();
+        .fold(false, |dupe_found, (_, group)| {
+            if group.count() > 1 {
+                true
 
-            if items.len() > 1 {
-                let unsigned_key = u32::try_from(key).expect("positive integer"); //the index key should always be positive or zero
-                let first_dupe = items[0]; // or &items[0], depending on what you need
-                Some(IndexAndValue {index: unsigned_key, value: first_dupe})
-            } else {
-                a
+            } 
+            
+            else {
+                dupe_found
             }
         });
 
-    if let Some(index_and_value) = duplicates_found { //auto increment the initial value from the first known position
-        let starting_index = usize::try_from(index_and_value.index).expect("positive i32");
-        let ending_index = borrowed_variants.len();
-        let sliced = &mut borrowed_variants[starting_index..ending_index];
+    if duplicates_found { // if there are duplicates, auto increment ALL the initial values from the first known position
         let mut increment = 0;
         
-        for a in sliced {
-            let mut numeric = a.initial_value.parse::<i32>().expect("parsed integer");
-            numeric += increment;
+        for a in borrowed_variants {
+            a.initial_value = increment.to_string();
             increment += 1;
-            a.initial_value = numeric.to_string();
         }
     }
 
