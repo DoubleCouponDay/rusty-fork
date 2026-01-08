@@ -204,25 +204,31 @@ struct NameAndInitialValue {
     pub initial_value: String
 }
 
+struct IndexAndValue<'lifetime_a> {
+    pub index: u32,
+    pub value: &'lifetime_a NameAndInitialValue
+}
+
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
     let borrowed_variants = &mut enum_variants;
 
     let duplicates_found = borrowed_variants.iter() 
-        .group_by(|a| a.initial_value.trim().parse::<i32>().expect("parsed integer"))
+        .group_by(|a| a.initial_value.trim().parse::<i32>().expect("parsed integer")) //enums can have negative integer values
         .into_iter()
         .fold(None, |a, (key, b)| {
             let items: Vec<_> = b.collect();
 
             if items.len() > 1 {
+                let unsigned_key = u32::try_from(key).expect("positive integer"); //the index key should always be positive or zero
                 let first_dupe = items[0]; // or &items[0], depending on what you need
-                Some((key, first_dupe))
+                Some(IndexAndValue {index: unsigned_key, value: first_dupe})
             } else {
                 a
             }
         });
 
     if let Some(index_and_value) = duplicates_found { //auto increment the initial value from the first known position
-        let starting_index = usize::try_from(index_and_value.0).expect("positive i32");
+        let starting_index = usize::try_from(index_and_value.index).expect("positive i32");
         let ending_index = borrowed_variants.len();
         let sliced = &mut borrowed_variants[starting_index..ending_index];
         let mut increment = 0;
