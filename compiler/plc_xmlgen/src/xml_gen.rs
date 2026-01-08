@@ -115,7 +115,6 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
                     continue;
                 }
                 let unwrapped_enum_type = name.clone().unwrap();
-                println!("Enum Type: {}", &unwrapped_enum_type);
 
                 let enumerators = match &elements.stmt {
                     AstStatement::ExpressionList(ast_nodes) => ast_nodes.iter().map(|a| {
