@@ -2238,6 +2238,7 @@ name = "plc_xmlgen"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "itertools",
  "plc_ast",
  "rustc-hash",
  "xml",

@@ -6,5 +6,6 @@ edition = "2024"
 [dependencies]
 plc_ast = { path = "../plc_ast" }
 xml = "1.0.0"
-rustc-hash.workspace = true
-chrono = "0.4"
+rustc-hash = "1.1.0"
+chrono = "0.4" #full features required to use the Local struct
+itertools = "0.11"

@@ -1,9 +1,13 @@
-use std::{borrow::Cow, fs::{copy, File}, io::Error, path::{Path, PathBuf}};
+use core::borrow;
+use std::{borrow::Cow, fs::{File, copy}, io::Error, ops::Index, path::{Path, PathBuf}, vec::IntoIter};
 
 use super::serializer::*;
-use chrono::Local;
+
 use plc_ast::ast::*;
 use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
+
+use chrono::Local;
+use itertools::{Group, Itertools};
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -200,18 +204,47 @@ struct NameAndInitialValue {
     pub initial_value: String
 }
 
-fn  format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
-    let folded: Option<String> = enum_variants.drain(..).map(|a| {
-        if a.is_none() {
-            b.initial_value
-        }
-        
-        else if let Some(unwrapped_a) = a && unwrapped_a.initial_value == b.initial_value {
-            Some(b.initial_value)
-        }
-    });
+fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
+    let borrowed_variants = &mut enum_variants;
 
-    todo!()
+    let duplicates_found = borrowed_variants.into_iter() 
+        .group_by(|a| a.initial_value.trim().parse::<i32>().expect("parsed integer"))
+        .into_iter()
+        .fold(None, |a, (key, mut b)| {
+            let borrowed_b = &mut b;
+
+            if borrowed_b.count() > 1 { //check if there are duplicate enum initial values
+                let first_dupe = borrowed_b.next().unwrap();
+                Some((key, first_dupe))
+            } 
+            
+            else {
+                a
+            }
+        });
+
+    if let Some(index_and_value) = duplicates_found { //auto increment the initial value from the first known position
+        let starting_index = usize::try_from(index_and_value.0).expect("positive i32");
+        let ending_index = borrowed_variants.len();
+        let sliced = &mut borrowed_variants[starting_index..ending_index];
+        let mut increment = 0;
+        
+        for a in sliced {
+            a.initial_value = increment.to_string();
+            increment += 1;
+        }
+    }
+
+    let output: Vec<Box<dyn IntoNode>> = enum_variants.drain(..).map(|a| {
+            let mapped: Box<dyn IntoNode> = Box::new(SEnumerator::new()
+                .attribute(String::from("name"), a.name)
+                .attribute(String::from("value"), a.initial_value));
+
+            mapped
+        })
+        .collect();
+
+    output
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
