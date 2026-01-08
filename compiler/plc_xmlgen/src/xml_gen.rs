@@ -220,7 +220,7 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
             }
         });
 
-    if duplicates_found { // if there are duplicates, auto increment ALL the initial values from the first known position
+    if duplicates_found { // if there are duplicates, overwrite ALL the initial values
         let mut increment = 0;
         
         for a in borrowed_variants {
