@@ -1,13 +1,11 @@
-use core::borrow;
-use std::{borrow::Cow, fs::{File, copy}, io::Error, ops::Index, path::{Path, PathBuf}, vec::IntoIter};
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, io::Error, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
 use plc_ast::ast::*;
-use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 
+use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 use chrono::Local;
-use itertools::{Group, Itertools};
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -206,17 +204,17 @@ struct NameAndInitialValue {
 
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
     let borrowed_variants = &mut enum_variants;
+    let mut viewed_values: HashMap<&String, ()> = HashMap::new();
 
-    let duplicates_found = borrowed_variants.iter() 
-        .group_by(|a| a.initial_value.trim().parse::<i32>().expect("parsed integer")) //enums can have negative integer values
-        .into_iter()
-        .fold(false, |dupe_found, (_, group)| {
-            if group.count() > 1 {
+    let duplicates_found = borrowed_variants.iter()
+        .fold(false, |a, b| {
+            if viewed_values.contains_key(&b.initial_value) {
                 true
-            } 
-            
+            }
+
             else {
-                dupe_found
+                viewed_values.insert(&b.initial_value, ());
+                a
             }
         });
 
