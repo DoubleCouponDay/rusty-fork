@@ -81,6 +81,10 @@ fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit
     for a in 0..current_unit.user_types.len() {
         let current_usertype = &current_unit.user_types[a];
 
+        if current_usertype.location.span == CodeSpan::None {
+            continue; //discard internally generated types
+        }
+
         let customtype_maybe: Option<SDataTypeDecl> = match &current_usertype.data_type {
             DataType::StructType { name, variables } => { //STRUCT
                 if name.is_none() { //every structure must have a name
@@ -90,8 +94,6 @@ fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit
 
                 let mut spec_node = SUserDefinedTypeSpec::new()
                     .attribute_str("xsi:type", "StructTypeSpec");
-
-
 
                 for b in 0..variables.len() {
                     let current_variable = &variables[b];
@@ -250,7 +252,6 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
     let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
     let global_root: &mut Node = maybe_global_root.ok_or(())?;
-    println!("file: {:?}, implementations: {}", current_unit.file, current_unit.implementations.len());
 
     for a in 0..current_unit.implementations.len() {
         let current_impl = &current_unit.implementations[a];
@@ -262,7 +263,6 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
         if current_impl.linkage == LinkageType::External { //discard externally linked POUs since the receiving platform will have those implemented already
             continue;
         }
-        println!("impl name: {}, type_name: {}, pou type: {}, linkage type: {:?}", current_impl.name, current_impl.type_name, current_impl.pou_type, current_impl.linkage);
 
         let statements = match &current_impl.location.span {
             CodeSpan::Range(inner_range) => {
@@ -383,7 +383,6 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
                     continue; //skip non global variables
                 }
             };
-            println!("current global name: {}, linkage type: {:?}, kind: {}, location: {}", current_variable.name, current_global.linkage, current_global.kind, current_variable.location);
 
             let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
                 .attribute("networkPublish".to_string(), network_publish);
