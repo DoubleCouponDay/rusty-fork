@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, io::Error, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, i32::MAX, io::Error, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
@@ -203,31 +203,31 @@ struct NameAndInitialValue {
 }
 
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
-    let borrowed_variants = &mut enum_variants;
+    let borrowed_variants: Vec<&mut NameAndInitialValue> = enum_variants.iter_mut().map(|a| a).collect();
     let mut viewed_values: HashMap<&String, ()> = HashMap::new();
+    let mut increment = 0;
+    let mut index = 0;
+    let length = borrowed_variants.len();
 
-    let duplicates_found = borrowed_variants.iter()
-        .fold(false, |a, b| {
-            if viewed_values.contains_key(&b.initial_value) {
-                true
-            }
-
-            else {
-                viewed_values.insert(&b.initial_value, ());
-                a
-            }
-        });
-
-    if duplicates_found { // if there are duplicates, overwrite ALL the initial values
-        let mut increment = 0;
+    while index < length {
+        let current = borrowed_variants;
         
-        for a in borrowed_variants {
-            a.initial_value = increment.to_string();
-            increment += 1;
+        if viewed_values.contains_key(&current.initial_value) == false {
+            viewed_values.insert(&current.initial_value, ());
+            index += 1;
+            continue;
         }
+
+        //conflicting variant value so try auto incrementing until a non conflict is found.
+        let mut parsed_value = current.initial_value.parse::<i32>().expect("signed integer");
+        parsed_value = parsed_value.checked_add(increment).expect("no integer overflow");
+        increment += 1;
+        current.initial_value = parsed_value.to_string();
+        let _ = viewed_values.insert(&current.initial_value, ()); //if a duplicate exists, smother the result until the next iteration
+        borrowed_variants[index] = current;
     }
 
-    enum_variants.drain(..).map(|a| {
+    enum_variants.drain(..).map(|a| { //generate the <Enumerator> elements
             let mapped: Box<dyn IntoNode> = Box::new(SEnumerator::new()
                 .attribute(String::from("name"), a.name)
                 .attribute(String::from("value"), a.initial_value));
