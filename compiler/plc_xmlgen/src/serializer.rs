@@ -509,6 +509,8 @@ newtype_impl!(SST, "ST", false);
 newtype_impl!(SBodyContent, "BodyContent", false);
 newtype_impl!(SMainBody, "MainBody", false);
 newtype_impl!(SProgram, "Program", false);
+newtype_impl!(SFunction, "Function", false);
+newtype_impl!(SFunctionBlock, "FunctionBlock", false);
 newtype_impl!(SVars, "SVars", false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";

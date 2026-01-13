@@ -247,6 +247,7 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
+    let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
     let global_root: &mut Node = maybe_global_root.ok_or(())?;
     println!("file: {:?}, implementations: {}", current_unit.file, current_unit.implementations.len());
@@ -281,33 +282,70 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
         };
     }
 
-        let st_element = SST::new()
-            .content(statements);
 
-        // let private_vars = current_unit.pous.
+    // let st_element = SST::new()
+    //     .content(statements);
 
-        // let private_vars_element = SVars::new()
-        //     .attribute_str("accessSpecifier", "private");
+    // // let private_vars = current_unit.pous.
 
-        // let public_vars_element = SVars::new()
-        //     .attribute_str("accessSpecifier", "public");
+    // // let private_vars_element = SVars::new()
+    // //     .attribute_str("accessSpecifier", "private");
 
-        let body_content = SBodyContent::new()
-            .attribute_str("xsi:type", "ST")
-            // .child(&public_vars_element)
-            // .child(&private_vars_element)
-            .child(&st_element);
+    // // let public_vars_element = SVars::new()
+    // //     .attribute_str("accessSpecifier", "public");
 
-        let main_body = SMainBody::new()
-            .child(&body_content);
+    // let body_content = SBodyContent::new()
+    //     .attribute_str("xsi:type", "ST")
+    //     // .child(&public_vars_element)
+    //     // .child(&private_vars_element)
+    //     .child(&st_element);
 
-        let program = SProgram::new()
-            .attribute(String::from("name"), current_pou.name.clone())
-            .child(&main_body);
+    // let main_body = SMainBody::new()
+    //     .child(&body_content);
 
-        global_root.child_borrowed(&program);
-    }
+    // let name_key = String::from("name");
+    // let name_value = current_pou.name.clone();
+
+    // let chosen_element: &dyn IntoNode = match current_pou.pou_type {
+    //     PouType::Program => {
+    //         &SProgram::new()
+    //             .attribute(name_key, name_value)
+    //             .child(&main_body)
+    //     },
+    //     PouType::Function => {
+    //         &SFunction::new()
+    //             .attribute(name_key, name_value)
+    //             .child(&main_body)
+    //     },
+    //     PouType::FunctionBlock => {
+    //         &SFunctionBlock::new()
+    //             .attribute(name_key, name_value)
+    //             .child(&main_body)
+    //     },
+    //     _ => {
+    //         return Ok(())
+    //     }
+    // };
+
+    // global_root.child_borrowed(chosen_element);
     Ok(())
+}
+
+fn grab_file_statement_from_span(file_path: &'static str, range: &Range<TextLocation>) -> String {
+    let mut file = File::open(file_path).expect(format!("source file exists: {}", file_path).as_str());
+    let unsigned_start = TryInto::<u64>::try_into(range.start.offset).expect("u64");
+    file.seek(SeekFrom::Start(unsigned_start)).expect("seeks to starting offset");
+    let maybe_size = range.end.offset.checked_sub(range.start.offset);
+
+    if maybe_size.is_none() {
+        return String::new(); //don't parse statement if it has a negative size
+    }
+    let size = maybe_size.unwrap();
+    let mut buffer: Vec<u8> = Vec::with_capacity(size);
+    file.read_exact(&mut buffer.as_mut_slice()).expect("reads successfully");
+    let formatted = String::from_utf8(buffer).expect("valid utf8 string");
+    println!("file_path: {}, start: {}, end: {}, size: {}, slice: {}", file_path, range.start.offset, range.end.offset, size, formatted);
+    formatted
 }
 
 fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
@@ -341,8 +379,11 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
 
             let network_publish = match current_global.kind {
                 VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
-                _ => NetworkPublishMode::DoNotPublish.to_string()
+                _ => {
+                    continue; //skip non global variables
+                }
             };
+            println!("current global name: {}, linkage type: {:?}, kind: {}, location: {}", current_variable.name, current_global.linkage, current_global.kind, current_variable.location);
 
             let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
                 .attribute("networkPublish".to_string(), network_publish);
