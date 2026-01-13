@@ -1,11 +1,11 @@
 use core::ascii;
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy, read}, io::{Error, Read, Seek, SeekFrom, read_to_string}, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy, read}, io::{Error, Read, Seek, SeekFrom, read_to_string}, ops::Range, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
 use plc_ast::ast::*;
 
-use plc_source::source_location::CodeSpan;
+use plc_source::source_location::{CodeSpan, TextLocation};
 use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 use chrono::Local;
 
@@ -59,6 +59,10 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
     for a in 0..units.len() {
         let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
+
+        if unit_name.to_lowercase().ends_with(".st") == false {
+            continue; //skip this unit since it is an internally generated file, not the users source code
+        }
 
         let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, &mut output_root);
         let _ = parse_custom_types(generation_parameters, current_unit, &mut output_root);
@@ -243,35 +247,28 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
-    let types_root: &mut Node = maybe_types_root.ok_or(())?;    
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
     let global_root: &mut Node = maybe_global_root.ok_or(())?;
+    println!("file: {:?}, implementations: {}", current_unit.file, current_unit.implementations.len());
 
     for a in 0..current_unit.implementations.len() {
-        let current_pou = &current_unit.implementations[a];
+        let current_impl = &current_unit.implementations[a];
 
-        if current_pou.pou_type != PouType::Program && current_pou.pou_type != PouType::Function && current_pou.pou_type != PouType::FunctionBlock { 
+        if current_impl.pou_type != PouType::Program && current_impl.pou_type != PouType::Function && current_impl.pou_type != PouType::FunctionBlock { 
             continue; //currently the only POUs that are supported for xml generation
         }
 
-        let statements = match &current_pou.location.span {
-            CodeSpan::Range(inner_range) => {
-                match current_pou.location.file {
-                    plc_source::source_location::FileMarker::File(inner_text) => {
-                        let mut file = File::open(inner_text).expect(format!("source file exists: {}", inner_text).as_str());
-                        let unsigned_start = TryInto::<u64>::try_into(inner_range.start.offset).expect("u64");
-                        file.seek(SeekFrom::Start(unsigned_start)).expect("seeks to starting offset");
-                        let maybe_size = inner_range.end.offset.checked_sub(inner_range.start.offset);
+        if current_impl.linkage == LinkageType::External { //discard externally linked POUs since the receiving platform will have those implemented already
+            continue;
+        }
+        println!("impl name: {}, type_name: {}, pou type: {}, linkage type: {:?}", current_impl.name, current_impl.type_name, current_impl.pou_type, current_impl.linkage);
 
-                        if maybe_size.is_none() {
-                            continue; //don't parse statement if it has a negative size
-                        }
-                        let size = maybe_size.unwrap();
-                        let mut buffer: Vec<u8> = Vec::with_capacity(size);
-                        file.read_exact(&mut buffer.as_mut_slice()).expect("reads successfully");
-                        let formatted = String::from_utf8(buffer).expect("valid utf8 string");
-                        println!("inner_text: {}, start: {}, end: {}, size: {}, slice: {}", inner_text, inner_range.start.offset, inner_range.end.offset, size, formatted);
-                        formatted
+        let statements = match &current_impl.location.span {
+            CodeSpan::Range(inner_range) => {
+                match current_impl.location.file {
+                    plc_source::source_location::FileMarker::File(inner_text) => {
+                        // grab_file_statement_from_span(current_impl.locaiton.file)
+                        String::from("")
                     },
                     _ => {
                         continue; //don't parse FileMarkers that didn't come from ST files
@@ -282,6 +279,7 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
                 continue; //dont parse CodeSpans that aren't Ranges
             }
         };
+    }
 
         let st_element = SST::new()
             .content(statements);
@@ -336,6 +334,10 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
 
         for b in 0..current_global.variables.len() {
             let current_variable = &current_global.variables[b];
+
+            if current_variable.location.span == CodeSpan::None {
+                continue; //discard compiler interally generated variables
+            }            
 
             let network_publish = match current_global.kind {
                 VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
