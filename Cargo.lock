@@ -2239,6 +2239,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "plc_ast",
+ "plc_source",
  "rustc-hash",
  "xml",
 ]

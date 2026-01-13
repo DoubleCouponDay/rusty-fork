@@ -1,9 +1,10 @@
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, io::Error, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy, read}, io::{Error, Read, read_to_string}, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
 use plc_ast::ast::*;
 
+use plc_source::source_location::CodeSpan;
 use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 use chrono::Local;
 
@@ -75,7 +76,7 @@ fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit
     for a in 0..current_unit.user_types.len() {
         let current_usertype = &current_unit.user_types[a];
 
-        let customtype_ready: Option<SDataTypeDecl> = match &current_usertype.data_type {
+        let customtype_maybe: Option<SDataTypeDecl> = match &current_usertype.data_type {
             DataType::StructType { name, variables } => { //STRUCT
                 if name.is_none() { //every structure must have a name
                     continue;
@@ -162,7 +163,7 @@ fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit
             _ => None                                
         };
 
-        if let Some(unwrapped_ready) = customtype_ready {
+        if let Some(unwrapped_ready) = customtype_maybe {
             global_root.child_borrowed(&unwrapped_ready);
         }        
     }
@@ -240,19 +241,63 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+    let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
+    let types_root: &mut Node = maybe_types_root.ok_or(())?;    
+    let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
+    let global_root: &mut Node = maybe_global_root.ok_or(())?;
 
+    for a in 0..current_unit.implementations.len() {
+        let current_pou = &current_unit.implementations[a];
 
-        //Functions
+        if current_pou.pou_type != PouType::Program && current_pou.pou_type != PouType::Function && current_pou.pou_type != PouType::FunctionBlock { 
+            continue; //currently the only POUs that are supported for xml generation
+        }
 
+        let statements = match &current_pou.location.span {
+            CodeSpan::Range(inner_range) => {
+                match current_pou.location.file {
+                    plc_source::source_location::FileMarker::File(inner_text) => {
+                        let file_text = File::open(inner_text).expect(format!("source file exists: {}", inner_text).as_str());
+                        file_text.
+                        println!("start: {}, end: {}, raw: {}", inner_range.start.offset, inner_range.end.offset, );
+                        inner_text.get(inner_range.start.offset..inner_range.end.offset).expect("valid slice")
+                    },
+                    _ => {
+                        continue; //don't parse FileMarkers that didn't come from ST files
+                    }
+                }
+            },
+            _ => {
+                continue; //dont parse CodeSpans that aren't Ranges
+            }
+        };
 
+        let st_element = SST::new()
+            .content(String::from(statements));
 
-        //Function blocks
+        // let private_vars = current_unit.pous.
 
+        // let private_vars_element = SVars::new()
+        //     .attribute_str("accessSpecifier", "private");
 
+        // let public_vars_element = SVars::new()
+        //     .attribute_str("accessSpecifier", "public");
 
-        //Programs
+        let body_content = SBodyContent::new()
+            .attribute_str("xsi:type", "ST")
+            // .child(&public_vars_element)
+            // .child(&private_vars_element)
+            .child(&st_element);
 
-    
+        let main_body = SMainBody::new()
+            .child(&body_content);
+
+        let program = SProgram::new()
+            .attribute(String::from("name"), current_pou.name.clone())
+            .child(&main_body);
+
+        global_root.child_borrowed(&program);
+    }
     Ok(())
 }
 

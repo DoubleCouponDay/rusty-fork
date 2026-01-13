@@ -505,6 +505,11 @@ newtype_impl!(SUserDefinedTypeSpec, "UserDefinedTypeSpec", false);
 newtype_impl!(SMember, "Member", false);
 newtype_impl!(SEnumerator, "Enumerator", false);
 newtype_impl!(SBaseType, "BaseType", false);
+newtype_impl!(SST, "ST", false);
+newtype_impl!(SBodyContent, "BodyContent", false);
+newtype_impl!(SMainBody, "MainBody", false);
+newtype_impl!(SProgram, "Program", false);
+newtype_impl!(SVars, "SVars", false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";
