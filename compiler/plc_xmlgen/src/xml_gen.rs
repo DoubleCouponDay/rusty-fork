@@ -1,4 +1,5 @@
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy, read}, io::{Error, Read, read_to_string}, path::{Path, PathBuf}};
+use core::ascii;
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy, read}, io::{Error, Read, Seek, SeekFrom, read_to_string}, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
@@ -257,10 +258,20 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
             CodeSpan::Range(inner_range) => {
                 match current_pou.location.file {
                     plc_source::source_location::FileMarker::File(inner_text) => {
-                        let file_text = File::open(inner_text).expect(format!("source file exists: {}", inner_text).as_str());
-                        file_text.
-                        println!("start: {}, end: {}, raw: {}", inner_range.start.offset, inner_range.end.offset, );
-                        inner_text.get(inner_range.start.offset..inner_range.end.offset).expect("valid slice")
+                        let mut file = File::open(inner_text).expect(format!("source file exists: {}", inner_text).as_str());
+                        let unsigned_start = TryInto::<u64>::try_into(inner_range.start.offset).expect("u64");
+                        file.seek(SeekFrom::Start(unsigned_start)).expect("seeks to starting offset");
+                        let maybe_size = inner_range.end.offset.checked_sub(inner_range.start.offset);
+
+                        if maybe_size.is_none() {
+                            continue; //don't parse statement if it has a negative size
+                        }
+                        let size = maybe_size.unwrap();
+                        let mut buffer: Vec<u8> = Vec::with_capacity(size);
+                        file.read_exact(&mut buffer.as_mut_slice()).expect("reads successfully");
+                        let formatted = String::from_utf8(buffer).expect("valid utf8 string");
+                        println!("inner_text: {}, start: {}, end: {}, size: {}, slice: {}", inner_text, inner_range.start.offset, inner_range.end.offset, size, formatted);
+                        formatted
                     },
                     _ => {
                         continue; //don't parse FileMarkers that didn't come from ST files
@@ -273,7 +284,7 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
         };
 
         let st_element = SST::new()
-            .content(String::from(statements));
+            .content(statements);
 
         // let private_vars = current_unit.pous.
 
