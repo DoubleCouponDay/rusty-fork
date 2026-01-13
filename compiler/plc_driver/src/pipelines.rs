@@ -43,7 +43,7 @@ use plc_diagnostics::{
 };
 use plc_index::GlobalContext;
 use plc_lowering::inheritance::InheritanceLowerer;
-use plc_xmlgen::xml_gen::copy_xmlfiles_to_output;
+use plc_xmlgen::xml_gen::copy_xmlfile_to_output;
 use project::{
     object::Object,
     project::{LibraryInformation, Project},
@@ -1026,7 +1026,7 @@ impl GeneratedProject {
                     FormatOption::XML => {
                         let paths: Vec<&Path> = self.objects.iter().map(|a| a.get_path()).collect();
 
-                        match copy_xmlfiles_to_output(paths, output_location) {
+                        match copy_xmlfile_to_output(paths, output_location) {
                             Ok(path) => Ok(path),
                             Err(error) => Err(Diagnostic::new(error.to_string())),
                         }

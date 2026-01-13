@@ -96,7 +96,7 @@ fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit
                     }
                     let mut typename = String::from(maybe_typename.unwrap());
 
-                    if typename.to_lowercase() == "string" && generation_parameters.output_xml_omron { //convert to omron string type
+                    if typename.to_ascii_uppercase() == "STRING" && generation_parameters.output_xml_omron { //convert to omron string type
                         typename = String::from("String[1986]");
                     }
 
@@ -433,7 +433,7 @@ fn recurse_write_xml(writer: &mut EventWriter<File>, output_path: &PathBuf, mut 
     Ok(())
 }
 
-pub fn copy_xmlfiles_to_output(temp_paths: Vec<&Path>, output_path: PathBuf) -> Result<PathBuf, Error> {
+pub fn copy_xmlfile_to_output(temp_paths: Vec<&Path>, output_path: PathBuf) -> Result<PathBuf, Error> {
     if temp_paths.len() == 0 {
         return Ok(output_path);
     }
