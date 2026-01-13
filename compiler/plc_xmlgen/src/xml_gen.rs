@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, i32::MAX, io::Error, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, io::Error, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
@@ -53,20 +53,20 @@ pub fn get_omron_template() -> Node {
 
 pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
 
-pub fn parse_project_into_nodetree(units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, mut output_root: Node) -> Result<(), Error> {
+pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters, units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, mut output_root: Node) -> Result<(), Error> {
     for a in 0..units.len() {
         let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
 
-        let _ = parse_globals(current_unit, unit_name, schema_path, &mut output_root);
-        let _ = parse_custom_types(current_unit, &mut output_root);
+        let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, &mut output_root);
+        let _ = parse_custom_types(generation_parameters, current_unit, &mut output_root);
         let _ = parse_pous(current_unit, unit_name, schema_path, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
 }
 
-fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
+fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;    
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
@@ -94,7 +94,11 @@ fn parse_custom_types(current_unit: &CompilationUnit, output_root: &mut Node) ->
                     if maybe_typename.is_none() { //every variable must have a type
                         continue;
                     }
-                    let typename = String::from(maybe_typename.unwrap());
+                    let mut typename = String::from(maybe_typename.unwrap());
+
+                    if typename.to_lowercase() == "string" && generation_parameters.output_xml_omron { //convert to omron string type
+                        typename = String::from("String[1986]");
+                    }
 
                     let typename_node = STypeName::new()
                         .content(typename);
@@ -252,7 +256,7 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
     Ok(())
 }
 
-fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
     let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
     let globals_root = maybe_globals_root.ok_or(())?;
 
@@ -298,7 +302,11 @@ fn parse_globals(current_unit: &CompilationUnit, unit_name: &str, schema_path: &
             if maybe_typename.is_none() { //every variable needs a typename
                 continue;
             }
-            let typename = maybe_typename.unwrap().to_string();
+            let mut typename = maybe_typename.unwrap().to_string();
+
+            if typename.to_lowercase() == "string" && generation_parameters.output_xml_omron { //convert to omron string type
+                typename = String::from("String[1986]");
+            }
 
             let typename_node = STypeName::new() //<TypeName>
                 .content(typename);
