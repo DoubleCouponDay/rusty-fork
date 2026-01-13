@@ -203,38 +203,36 @@ struct NameAndInitialValue {
 }
 
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
-    let borrowed_variants: Vec<&mut NameAndInitialValue> = enum_variants.iter_mut().map(|a| a).collect();
-    let mut viewed_values: HashMap<&String, ()> = HashMap::new();
-    let mut increment = 0;
-    let mut index = 0;
-    let length = borrowed_variants.len();
-
-    while index < length {
-        let current = borrowed_variants;
+    let mut viewed_values: HashMap<String, ()> = HashMap::new(); // Own strings for ownership
+    
+    for i in 0..enum_variants.len() {
+        let current_initial = &mut enum_variants[i].initial_value;
         
-        if viewed_values.contains_key(&current.initial_value) == false {
-            viewed_values.insert(&current.initial_value, ());
-            index += 1;
+        if !viewed_values.contains_key(current_initial) {
+            viewed_values.insert(current_initial.clone(), ());
             continue;
         }
-
-        //conflicting variant value so try auto incrementing until a non conflict is found.
-        let mut parsed_value = current.initial_value.parse::<i32>().expect("signed integer");
-        parsed_value = parsed_value.checked_add(increment).expect("no integer overflow");
-        increment += 1;
-        current.initial_value = parsed_value.to_string();
-        let _ = viewed_values.insert(&current.initial_value, ()); //if a duplicate exists, smother the result until the next iteration
-        borrowed_variants[index] = current;
+        
+        // Conflict: auto-increment
+        let parsed_value = current_initial.parse::<i32>().expect("signed integer");
+        let mut increment = 1;
+        loop {
+            let new_value = parsed_value.checked_add(increment).expect("no overflow");
+            let new_str = new_value.to_string();
+            if !viewed_values.contains_key(&new_str) {
+                *current_initial = new_str;
+                viewed_values.insert(current_initial.clone(), ());
+                break;
+            }
+            increment += 1;
+        }
     }
-
-    enum_variants.drain(..).map(|a| { //generate the <Enumerator> elements
-            let mapped: Box<dyn IntoNode> = Box::new(SEnumerator::new()
-                .attribute(String::from("name"), a.name)
-                .attribute(String::from("value"), a.initial_value));
-
-            mapped
-        })
-        .collect()
+    
+    enum_variants.into_iter().map(|a| {
+        Box::new(SEnumerator::new()
+            .attribute(String::from("name"), a.name)
+            .attribute(String::from("value"), a.initial_value)) as Box<dyn IntoNode>
+    }).collect()
 }
 
 fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
