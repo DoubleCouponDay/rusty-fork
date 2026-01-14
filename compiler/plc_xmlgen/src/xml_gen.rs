@@ -46,7 +46,7 @@ pub fn get_omron_template() -> Node {
                 .attribute_str("productVersion", "1.30.0.0"))
             .child(&SContentHeader::new()
                 .attribute_str("name", "Sample")
-                .attribute("creationDateTime".to_string(), Local::now().to_rfc3339()))
+                .attribute(String::from("creationDateTime"), Local::now().to_rfc3339()))
             .child(&STypes::new()
                 .child(&SGlobalNamespace::new()))
             .child(&SInstances::new())
