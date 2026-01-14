@@ -55,6 +55,9 @@ pub fn get_omron_template() -> Node {
 pub const OMRON_SCHEMA: &'static str = "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd";
 
 pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters, units: &Vec<&CompilationUnit>, schema_path: &'static str, output_path: &PathBuf, mut output_root: Node) -> Result<(), Error> {
+    let mut param_order: HashSet<(String, usize)> = HashSet::new(); //the unique combination of (ParameterName, orderWithinParamSet) for the entire generation.
+    let borrowed_order = &mut param_order;
+
     for a in 0..units.len() {
         let current_unit = units[a];
         let unit_name = current_unit.file.get_name().unwrap_or("");
@@ -62,17 +65,17 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
         if unit_name.to_lowercase().ends_with(".st") == false {
             continue; //skip this unit since it is an internally generated file, not the users source code
         }
-        let mut param_order: HashSet<(String, usize)> = HashSet::new();
+        let borrowed_root = &mut output_root;
 
-        let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, &mut output_root);
-        let _ = parse_custom_types(generation_parameters, current_unit, &mut output_root);
-        let _ = parse_pous(generation_parameters, current_unit, schema_path, &mut param_order, &mut output_root);
+        let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, borrowed_order, borrowed_root);
+        let _ = parse_custom_types(generation_parameters, current_unit, borrowed_root);
+        let _ = parse_pous(generation_parameters, current_unit, schema_path, borrowed_order, borrowed_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
 }
 
-fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, preused_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
     let globals_root = maybe_globals_root.ok_or(())?;
 
@@ -119,13 +122,15 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
             let adddata_node = SOmronAddData::new() //<AddData>
                 .child(&data_node);
 
-            let mut maybe_newvar = generate_variable_element(current_variable, generation_parameters, pou_name, preused_order, order, add_order);
+            let cloned_unitname = String::from(unit_name);
+
+            let maybe_newvar = generate_variable_element(current_variable, generation_parameters, &cloned_unitname, preused_order, b, false);
 
             if maybe_newvar.is_none() {
                 continue; //no variable element created so skip it
             }
-            let new_var = maybe_newvar.unwrap();
-            new_var = new_var.child(&adddata_node);
+            let new_var = maybe_newvar.unwrap()
+                .child(&adddata_node);
 
             parsed_variables.push(Box::new(new_var));
         }
@@ -200,14 +205,14 @@ fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit
                     if maybe_typename.is_none() { //every variable must have a type
                         continue;
                     }
-                    let mut typename = String::from(maybe_typename.unwrap());
+                    let mut typename = maybe_typename.unwrap();
 
-                    if typename.to_ascii_uppercase() == "STRING" && generation_parameters.output_xml_omron { //convert to omron string type
-                        typename = String::from("String[1986]");
+                    if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
+                        typename = "String[1986]";
                     }
 
                     let typename_node = STypeName::new()
-                        .content(typename);
+                        .content(String::from(typename));
 
                     let type_node = SType::new()
                         .child(&typename_node);
@@ -578,6 +583,8 @@ fn parse_pous(generation_parameters: &GenerationParameters, current_unit: &Compi
     Ok(())
 }
 
+///returns the generated element.
+/// add_order - whether to add the "orderWithinParamSet" attribute.
 fn generate_variable_element(current_variable: &Variable, generation_parameters: &GenerationParameters, pou_name: &String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
     let maybe_typename = current_variable.data_type_declaration.get_name();
 
