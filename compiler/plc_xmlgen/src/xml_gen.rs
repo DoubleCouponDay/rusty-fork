@@ -447,10 +447,7 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
                 let current_variable = &current_block.variables[c];
                 let use_order_attr = current_block.kind != VariableBlockType::Local;
 
-                println!("name: {}, type: {}", current_variable.name, current_block.kind);
-
                 if current_variable.location.span == CodeSpan::None {
-                    println!("skipping no location var");
                     continue; //discard compiler interally generated variables
                 }
 
@@ -462,7 +459,6 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
                 let maybe_variablenode = generate_variable_element(current_variable, generation_parameters, &matching_metadata.name, schema_path, network_publish, param_order, c, use_order_attr);
 
                 if maybe_variablenode.is_none() {
-                    println!("skipping no <Variable>");
                     continue;
                 }
                 let variable_node = maybe_variablenode.unwrap();
