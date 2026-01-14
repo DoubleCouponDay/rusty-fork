@@ -9,6 +9,8 @@ use plc_source::source_location::{CodeSpan, TextLocation};
 use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 use chrono::Local;
 
+const NEWLINE: &str = if cfg!(windows) { "\r\n" } else { "\n" };
+
 #[derive(Debug)]
 pub struct GenerationParameters {
     pub output_xml_omron: bool    
@@ -255,6 +257,7 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
 
     for a in 0..current_unit.implementations.len() {
         let current_impl = &current_unit.implementations[a];
+        let matching_metadata = current_unit.pous.iter().find(|a| a.name == current_impl.name).expect("pou metadata matching the current implementation");
 
         if current_impl.pou_type != PouType::Program && current_impl.pou_type != PouType::Function && current_impl.pou_type != PouType::FunctionBlock { 
             continue; //currently the only POUs that are supported for xml generation
@@ -264,12 +267,16 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
             continue;
         }
 
-        let statements = match &current_impl.location.span {
+        let procedure_text = match &current_impl.location.span {
             CodeSpan::Range(inner_range) => {
                 match current_impl.location.file {
-                    plc_source::source_location::FileMarker::File(inner_text) => {
-                        // grab_file_statement_from_span(current_impl.locaiton.file)
-                        String::from("")
+                    plc_source::source_location::FileMarker::File(file_path) => {
+                        match grab_file_statement_from_span(file_path, &inner_range) {
+                            Some(pou_procedure_text) => pou_procedure_text,
+                            None => {
+                                continue;
+                            },
+                        }
                     },
                     _ => {
                         continue; //don't parse FileMarkers that didn't come from ST files
@@ -280,72 +287,214 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
                 continue; //dont parse CodeSpans that aren't Ranges
             }
         };
+
+        let info_node = SPouInfo::new()
+            .attribute_str("version", "0.0.0")
+            .attribute(String::from("creationDateTime"), Local::now().to_rfc3339());
+
+        let data_node = SOmronData::new() //<Data>
+            .attribute_str("name", schema_path)
+            .attribute_str("handleUnknown", "discard")
+            .child(&info_node);
+
+        let adddata_node = SOmronAddData::new() //<AddData>
+            .child(&data_node);
+
+        let mut resulttype_node = SResultType::new(); //<ResultType>
+
+        if (current_impl.pou_type == PouType::Function || current_impl.pou_type == PouType::FunctionBlock) && 
+            let Some(result_type) = &matching_metadata.return_type && let Some(type_name) = result_type.get_name() {
+
+            let typename = STypeName::new()
+                .content(String::from(type_name));
+
+            resulttype_node = resulttype_node.child(&typename);
+        }
+
+        //<Parameters>
+        let mut input_vars = SInputVars::new();
+        let mut inout_vars = SInoutVars::new();
+        let mut output_vars = SOutputVars::new();
+        let mut parameters_node = SParameters::new();
+
+        //<Externals>
+        let mut externals = SExternalVars::new();
+
+        let mut constant_externals = SExternalVars::new()
+            .attribute_str("constant", "true");
+
+        //<Vars
+        let mut vars = SVars::new()
+            .attribute_str("accessSpecifier", "private");
+
+        let mut constant_vars = SVars::new()
+            .attribute_str("accessSpecifier", "private")
+            .attribute_str("constant", "true");
+
+        let mut retain_vars = SVars::new()
+            .attribute_str("accessSpecifier", "private")
+            .attribute_str("retain", "true");
+
+        let mut constant_retain_vars = SVars::new()
+            .attribute_str("accessSpecifier", "private")
+            .attribute_str("constant", "true")
+            .attribute_str("retain", "true");
+
+        //<TempVars>
+        let mut temp_vars = STempVars::new();
+
+        let mut constant_temp_vars = STempVars::new()
+            .attribute_str("constant", "true");
+
+        //put all the variables in the right containers
+        for b in 0..matching_metadata.variable_blocks.len() {
+            let current_block = &matching_metadata.variable_blocks[b];
+
+            for c in 0..current_block.variables.len() {
+                let current_variable = &current_block.variables[c];
+
+                match current_block.kind {
+                    VariableBlockType::Local => {
+                        if current_block.constant && current_block.retain {
+                            let maybe_typename = current_variable.data_type_declaration.get_name();
+
+                            if maybe_typename.is_none() {
+                                continue; //every variable needs a typename
+                            }
+
+                            let typename = STypeName::new()
+                                .content(String::from(maybe_typename.unwrap()));
+
+                            let typenode = SType::new()
+                                .child(&typename);
+
+                            let variable_node = SOmronVariable::new()
+                                .attribute(String::from("name"), current_variable.name.clone())
+                                .child(&typenode);
+
+                            if current_variable.address.is_some() {
+                                let address = current_variable.address.unwrap();
+                                let address_str = address.stmt;
+                                variable_node = variable_node.child()
+                            }
+
+                            constant_retain_vars = constant_retain_vars.child(&child);
+                        }
+
+                        else if current_block.constant {
+
+                        }
+
+                        else if current_block.retain {
+
+                        }
+
+                        else {
+
+                        }
+                    },
+                    VariableBlockType::Temp => {
+                        if current_block.constant {
+
+                        }
+
+                        else {
+
+                        }
+                    },
+                    VariableBlockType::Input(argument_property) => {
+
+                    },
+                    VariableBlockType::Output => todo!(),
+                    VariableBlockType::InOut => {
+
+                    },
+                    VariableBlockType::External => todo!(),
+                    _ => ()
+                }
+            }
+        }
+
+        parameters_node = parameters_node.child(&input_vars)
+            .child(&inout_vars)
+            .child(&output_vars);
+
+        //implementation statements
+        let mut st_element = SST::new(); //<ST>
+
+        if procedure_text.len() > 0 {
+            st_element = st_element.content(procedure_text);
+        }
+
+        let body_content = SBodyContent::new()
+            .attribute_str("xsi:type", "ST")
+            .child(&st_element);
+
+        let main_body = SMainBody::new()
+            .child(&body_content);
+
+        let name_key = String::from("name");
+        let name_value = current_impl.name.clone();
+
+        let chosen_element: &dyn IntoNode = match current_impl.pou_type {
+            PouType::Program => {
+                &SProgram::new()
+                    .attribute(name_key, name_value)
+                    .child(&adddata_node)
+                    .child(&externals)
+                    .child(&constant_externals)
+                    .child(&vars)
+                    .child(&constant_vars)
+                    .child(&retain_vars)
+                    .child(&constant_retain_vars)
+                    .child(&main_body)
+            },
+            PouType::Function => {
+                &SFunction::new()
+                    .attribute(name_key, name_value)
+                    .child(&adddata_node)
+                    .child(&resulttype_node)
+                    .child(&parameters_node)                    
+                    .child(&externals)
+                    .child(&constant_externals)
+                    .child(&temp_vars)
+                    .child(&constant_temp_vars)
+                    .child(&main_body)
+            },
+            PouType::FunctionBlock => {
+                &SFunctionBlock::new()
+                    .attribute(name_key, name_value)
+                    .child(&adddata_node)
+                    .child(&parameters_node)
+                    .child(&externals)
+                    .child(&constant_externals)
+                    .child(&vars)
+                    .child(&main_body)
+            },
+            _ => {
+                return Ok(())
+            }
+        };
+
+        global_root.child_borrowed(chosen_element);        
     }
-
-
-    // let st_element = SST::new()
-    //     .content(statements);
-
-    // // let private_vars = current_unit.pous.
-
-    // // let private_vars_element = SVars::new()
-    // //     .attribute_str("accessSpecifier", "private");
-
-    // // let public_vars_element = SVars::new()
-    // //     .attribute_str("accessSpecifier", "public");
-
-    // let body_content = SBodyContent::new()
-    //     .attribute_str("xsi:type", "ST")
-    //     // .child(&public_vars_element)
-    //     // .child(&private_vars_element)
-    //     .child(&st_element);
-
-    // let main_body = SMainBody::new()
-    //     .child(&body_content);
-
-    // let name_key = String::from("name");
-    // let name_value = current_pou.name.clone();
-
-    // let chosen_element: &dyn IntoNode = match current_pou.pou_type {
-    //     PouType::Program => {
-    //         &SProgram::new()
-    //             .attribute(name_key, name_value)
-    //             .child(&main_body)
-    //     },
-    //     PouType::Function => {
-    //         &SFunction::new()
-    //             .attribute(name_key, name_value)
-    //             .child(&main_body)
-    //     },
-    //     PouType::FunctionBlock => {
-    //         &SFunctionBlock::new()
-    //             .attribute(name_key, name_value)
-    //             .child(&main_body)
-    //     },
-    //     _ => {
-    //         return Ok(())
-    //     }
-    // };
-
-    // global_root.child_borrowed(chosen_element);
     Ok(())
 }
 
-fn grab_file_statement_from_span(file_path: &'static str, range: &Range<TextLocation>) -> String {
+fn grab_file_statement_from_span(file_path: &'static str, range: &Range<TextLocation>) -> Option<String> {
     let mut file = File::open(file_path).expect(format!("source file exists: {}", file_path).as_str());
     let unsigned_start = TryInto::<u64>::try_into(range.start.offset).expect("u64");
     file.seek(SeekFrom::Start(unsigned_start)).expect("seeks to starting offset");
     let maybe_size = range.end.offset.checked_sub(range.start.offset);
 
     if maybe_size.is_none() {
-        return String::new(); //don't parse statement if it has a negative size
+        return None; //don't parse statement if it has a negative size
     }
     let size = maybe_size.unwrap();
-    let mut buffer: Vec<u8> = Vec::with_capacity(size);
+    let mut buffer = vec![0u8; size];
     file.read_exact(&mut buffer.as_mut_slice()).expect("reads successfully");
     let formatted = String::from_utf8(buffer).expect("valid utf8 string");
-    println!("file_path: {}, start: {}, end: {}, size: {}, slice: {}", file_path, range.start.offset, range.end.offset, size, formatted);
-    formatted
+    Some(formatted)
 }
 
 fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {

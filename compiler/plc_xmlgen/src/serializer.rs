@@ -511,7 +511,15 @@ newtype_impl!(SMainBody, "MainBody", false);
 newtype_impl!(SProgram, "Program", false);
 newtype_impl!(SFunction, "Function", false);
 newtype_impl!(SFunctionBlock, "FunctionBlock", false);
-newtype_impl!(SVars, "SVars", false);
+newtype_impl!(SVars, "Vars", false);
+newtype_impl!(STempVars, "TempVars", false);
+newtype_impl!(SPouInfo, "smcext:PouInfo", false);
+newtype_impl!(SResultType, "ResultType", false);
+newtype_impl!(SParameters, "Parameters", false);
+newtype_impl!(SExternalVars, "ExternalVars", false);
+newtype_impl!(SInputVars, "InputVars", false);
+newtype_impl!(SInoutVars, "InoutVars", false);
+newtype_impl!(SOutputVars, "OutputVars", false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";
