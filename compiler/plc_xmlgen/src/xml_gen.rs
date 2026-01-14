@@ -422,14 +422,15 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_
 
         let mut resulttype_node = SResultType::new(); //<ResultType>
 
+        let mut typename_node = STypeName::new();
+
         if (current_impl.pou_type == PouType::Function || current_impl.pou_type == PouType::FunctionBlock) && 
             let Some(result_type) = &matching_metadata.return_type && let Some(type_name) = result_type.get_name() {
-
-            let typename = STypeName::new()
-                .content(String::from(type_name));
-
-            resulttype_node = resulttype_node.child(&typename);
+            typename_node = typename_node.content(String::from(type_name));
+                
         }
+
+        resulttype_node = resulttype_node.child(&typename_node);
 
         //<Parameters>
         let mut input_vars = SInputVars::new();
