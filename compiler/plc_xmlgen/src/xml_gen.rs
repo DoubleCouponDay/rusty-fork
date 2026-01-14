@@ -473,7 +473,7 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_
             for c in 0..current_block.variables.len() {
                 let current_variable = &current_block.variables[c];
 
-                let maybe_variablenode = generate_variable_element(current_variable);
+                let maybe_variablenode = generate_variable_element(current_variable, c);
 
                 if maybe_variablenode.is_none() {
                     continue;
@@ -596,7 +596,7 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_
     Ok(())
 }
 
-fn generate_variable_element(current_variable: &Variable) -> Option<SGenVariable> {
+fn generate_variable_element(current_variable: &Variable, order: usize) -> Option<SGenVariable> {
     let maybe_typename = current_variable.data_type_declaration.get_name();
     let mut typename_node = STypeName::new();
 
@@ -609,6 +609,7 @@ fn generate_variable_element(current_variable: &Variable) -> Option<SGenVariable
 
     let mut variable_node = SGenVariable::new()
         .attribute(String::from("name"), current_variable.name.clone())
+        .attribute(String::from("orderWithinParamSet"), order.to_string())
         .child(&typenode);
 
     //<InitialValue>
