@@ -125,8 +125,9 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
                 continue;
             }
             let mut typename = maybe_typename.unwrap().to_string();
+            println!("typename: {}", &typename);
 
-            if typename.to_lowercase() == "string" && generation_parameters.output_xml_omron { //convert to omron string type
+            if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
                 typename = String::from("String[1986]");
             }
 
