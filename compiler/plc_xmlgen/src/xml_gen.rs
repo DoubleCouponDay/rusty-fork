@@ -598,16 +598,14 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_
 
 fn generate_variable_element(current_variable: &Variable) -> Option<SGenVariable> {
     let maybe_typename = current_variable.data_type_declaration.get_name();
+    let mut typename_node = STypeName::new();
 
-    if maybe_typename.is_none() {
-        return None; //every variable needs a typename
+    if let Some(typename) = maybe_typename {
+        typename_node = typename_node.content(String::from(typename));
     }
 
-    let typename = STypeName::new()
-        .content(String::from(maybe_typename.unwrap()));
-
     let typenode = SType::new()
-        .child(&typename);
+        .child(&typename_node);
 
     let mut variable_node = SGenVariable::new()
         .attribute(String::from("name"), current_variable.name.clone())
