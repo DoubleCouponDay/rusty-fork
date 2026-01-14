@@ -628,7 +628,6 @@ fn generate_variable_element(current_variable: &Variable, pou_name: &String, pre
                 break;
             }
         };
-        println!("pou name: {}, order: {}, var name: {}", pou_name, iteration_order, &current_variable.name);
         variable_node = variable_node.attribute(String::from("orderWithinParamSet"), iteration_order.to_string());
     }
 
