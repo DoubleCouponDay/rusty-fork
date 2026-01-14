@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, io::{Error, Read, Seek, SeekFrom}, ops::Range, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::{HashSet}, fs::{File, copy}, io::{Error, Read, Seek, SeekFrom}, ops::Range, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
@@ -62,10 +62,11 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
         if unit_name.to_lowercase().ends_with(".st") == false {
             continue; //skip this unit since it is an internally generated file, not the users source code
         }
+        let mut param_order: HashSet<(String, usize)> = HashSet::new();
 
         let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, &mut output_root);
         let _ = parse_custom_types(generation_parameters, current_unit, &mut output_root);
-        let _ = parse_pous(current_unit, schema_path, &mut output_root);
+        let _ = parse_pous(current_unit, schema_path, &mut param_order, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
@@ -337,13 +338,13 @@ struct NameAndInitialValue {
 }
 
 fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
-    let mut viewed_values: HashMap<String, ()> = HashMap::new(); // Own strings for ownership
+    let mut viewed_values: HashSet<String> = HashSet::new(); // Own strings for ownership
     
     for i in 0..enum_variants.len() {
         let current_initial = &mut enum_variants[i].initial_value;
         
-        if !viewed_values.contains_key(current_initial) {
-            viewed_values.insert(current_initial.clone(), ());
+        if !viewed_values.contains(current_initial) {
+            viewed_values.insert(current_initial.clone());
             continue;
         }
         
@@ -353,9 +354,10 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
         loop {
             let new_value = parsed_value.checked_add(increment).expect("no overflow");
             let new_str = new_value.to_string();
-            if !viewed_values.contains_key(&new_str) {
+
+            if viewed_values.contains(&new_str) == false {
                 *current_initial = new_str;
-                viewed_values.insert(current_initial.clone(), ());
+                viewed_values.insert(current_initial.clone());
                 break;
             }
             increment += 1;
@@ -369,7 +371,7 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
     }).collect()
 }
 
-fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
@@ -473,8 +475,8 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_
 
             for c in 0..current_block.variables.len() {
                 let current_variable = &current_block.variables[c];
-
-                let maybe_variablenode = generate_variable_element(current_variable, c);
+                let use_order_attr = current_block.kind != VariableBlockType::Local;
+                let maybe_variablenode = generate_variable_element(current_variable, &matching_metadata.name, param_order, c, use_order_attr);
 
                 if maybe_variablenode.is_none() {
                     continue;
@@ -597,7 +599,7 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_
     Ok(())
 }
 
-fn generate_variable_element(current_variable: &Variable, order: usize) -> Option<SGenVariable> {
+fn generate_variable_element(current_variable: &Variable, pou_name: &String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
     let maybe_typename = current_variable.data_type_declaration.get_name();
     let mut typename_node = STypeName::new();
 
@@ -610,8 +612,25 @@ fn generate_variable_element(current_variable: &Variable, order: usize) -> Optio
 
     let mut variable_node = SGenVariable::new()
         .attribute(String::from("name"), current_variable.name.clone())
-        .attribute(String::from("orderWithinParamSet"), order.to_string())
         .child(&typenode);
+
+    if add_order {
+        let mut iteration_order: usize = order;
+        let mut increment: usize = 0;
+
+        loop {
+            iteration_order += increment;
+            increment += 1;
+            let key = (pou_name.clone(), iteration_order);
+
+            if preused_order.contains(&key) == false { //an unused order number was found. There cannot be duplicate order numbers for any POU variable
+                preused_order.insert(key);
+                break;
+            }
+        };
+        println!("pou name: {}, order: {}, var name: {}", pou_name, iteration_order, &current_variable.name);
+        variable_node = variable_node.attribute(String::from("orderWithinParamSet"), iteration_order.to_string());
+    }
 
     //<InitialValue>
     if let Some(variable_ast) = &current_variable.initializer && let AstStatement::Literal(literal_value
