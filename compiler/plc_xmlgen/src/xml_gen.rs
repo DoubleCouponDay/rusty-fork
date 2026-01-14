@@ -581,6 +581,24 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
 ///returns the generated element.
 /// add_order - whether to add the "orderWithinParamSet" attribute.
 fn generate_variable_element(current_variable: &Variable, generation_parameters: &GenerationParameters, pou_name: &String, schema_path: &'static str, network_publish: String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
+    let mut variable_node = SGenVariable::new()
+        .attribute(String::from("name"), current_variable.name.clone());
+    
+    //<AddData>
+    let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
+        .attribute(String::from("networkPublish"), network_publish);
+
+    let data_node = SOmronData::new() //<Data>
+        .attribute_str("name", schema_path)
+        .attribute_str("handleUnknown", "discard")
+        .child(&additional_property_node);
+
+    let adddata_node = SOmronAddData::new() //<AddData>
+        .child(&data_node);
+
+    variable_node = variable_node.child(&adddata_node);
+
+    //<Type>
     let maybe_typename = current_variable.data_type_declaration.get_name();
 
     if maybe_typename.is_none() {
@@ -598,9 +616,7 @@ fn generate_variable_element(current_variable: &Variable, generation_parameters:
     let typenode = SType::new() //<Type>
         .child(&typename_node);
 
-    let mut variable_node = SGenVariable::new()
-        .attribute(String::from("name"), current_variable.name.clone())
-        .child(&typenode);
+    variable_node = variable_node.child(&typenode);
 
     if add_order {
         let mut iteration_order: usize = order;
@@ -645,20 +661,6 @@ fn generate_variable_element(current_variable: &Variable, generation_parameters:
             _ => () //not every variable has an address
         }
     }
-
-    let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
-        .attribute(String::from("networkPublish"), network_publish);
-
-    let data_node = SOmronData::new() //<Data>
-        .attribute_str("name", schema_path)
-        .attribute_str("handleUnknown", "discard")
-        .child(&additional_property_node);
-
-    let adddata_node = SOmronAddData::new() //<AddData>
-        .child(&data_node);
-
-    variable_node = variable_node.child(&adddata_node);
-
     Some(variable_node)
 }
 
