@@ -111,27 +111,14 @@ fn generate_globals(generation_parameters: &GenerationParameters, current_unit: 
                 }
             };
 
-            let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
-                .attribute("networkPublish".to_string(), network_publish);
-
-            let data_node = SOmronData::new() //<Data>
-                .attribute_str("name", schema_path)
-                .attribute_str("handleUnknown", "discard")
-                .child(&additional_property_node);
-
-            let adddata_node = SOmronAddData::new() //<AddData>
-                .child(&data_node);
-
             let cloned_unitname = String::from(unit_name);
 
-            let maybe_newvar = generate_variable_element(current_variable, generation_parameters, &cloned_unitname, preused_order, b, false);
+            let maybe_newvar = generate_variable_element(current_variable, generation_parameters, &cloned_unitname, schema_path, network_publish, preused_order, b, false);
 
             if maybe_newvar.is_none() {
                 continue; //no variable element created so skip it
             }
-            let new_var = maybe_newvar.unwrap()
-                .child(&adddata_node);
-
+            let new_var = maybe_newvar.unwrap();
             parsed_variables.push(Box::new(new_var));
         }
 
@@ -460,7 +447,15 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
                 if current_variable.location.span == CodeSpan::None {
                     continue; //discard compiler interally generated variables
                 }
-                let maybe_variablenode = generate_variable_element(current_variable, generation_parameters, &matching_metadata.name, param_order, c, use_order_attr);
+
+                let network_publish = match current_block.kind {
+                    VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
+                    _ => {
+                        continue; //skip non global variables
+                    }
+                };
+
+                let maybe_variablenode = generate_variable_element(current_variable, generation_parameters, &matching_metadata.name, schema_path, network_publish, param_order, c, use_order_attr);
 
                 if maybe_variablenode.is_none() {
                     continue;
@@ -585,7 +580,7 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
 
 ///returns the generated element.
 /// add_order - whether to add the "orderWithinParamSet" attribute.
-fn generate_variable_element(current_variable: &Variable, generation_parameters: &GenerationParameters, pou_name: &String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
+fn generate_variable_element(current_variable: &Variable, generation_parameters: &GenerationParameters, pou_name: &String, schema_path: &'static str, network_publish: String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
     let maybe_typename = current_variable.data_type_declaration.get_name();
 
     if maybe_typename.is_none() {
@@ -650,6 +645,20 @@ fn generate_variable_element(current_variable: &Variable, generation_parameters:
             _ => () //not every variable has an address
         }
     }
+
+    let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
+        .attribute(String::from("networkPublish"), network_publish);
+
+    let data_node = SOmronData::new() //<Data>
+        .attribute_str("name", schema_path)
+        .attribute_str("handleUnknown", "discard")
+        .child(&additional_property_node);
+
+    let adddata_node = SOmronAddData::new() //<AddData>
+        .child(&data_node);
+
+    variable_node = variable_node.child(&adddata_node);
+
     Some(variable_node)
 }
 
