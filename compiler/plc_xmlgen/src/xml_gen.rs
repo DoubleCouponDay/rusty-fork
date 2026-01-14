@@ -66,7 +66,7 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
 
         let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, &mut output_root);
         let _ = parse_custom_types(generation_parameters, current_unit, &mut output_root);
-        let _ = parse_pous(current_unit, schema_path, &mut param_order, &mut output_root);
+        let _ = parse_pous(generation_parameters, current_unit, schema_path, &mut param_order, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
@@ -119,40 +119,14 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
             let adddata_node = SOmronAddData::new() //<AddData>
                 .child(&data_node);
 
-            let maybe_typename = current_variable.data_type_declaration.get_name();
+            let mut maybe_newvar = generate_variable_element(current_variable, generation_parameters, pou_name, preused_order, order, add_order);
 
-            if maybe_typename.is_none() { //every variable needs a typename
-                continue;
+            if maybe_newvar.is_none() {
+                continue; //no variable element created so skip it
             }
-            let mut typename = maybe_typename.unwrap().to_string();
-            println!("typename: {}", &typename);
+            let new_var = maybe_newvar.unwrap();
+            new_var = new_var.child(&adddata_node);
 
-            if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
-                typename = String::from("String[1986]");
-            }
-
-            let typename_node = STypeName::new() //<TypeName>
-                .content(typename);
-
-            let type_node = SType::new() //<Type>
-                .child(&typename_node);
-
-            let mut new_var = SGenVariable::new() //<Variable>
-                .with_name(current_variable.name.clone())
-                .child(&adddata_node)
-                .child(&type_node);
-
-            if let Some(variable_node) = &current_variable.initializer && let AstStatement::Literal(variable_value
-            ) = &variable_node.stmt {
-                let simple_node = SSimpleValue::new() //<SimpleValue />
-                    .attribute(String::from("value"), variable_value.to_string())
-                    .close();
-
-                let initial_node = SInitialValue::new() //<InitialValue>
-                    .child(&simple_node);
-
-                new_var = new_var.child(&initial_node);
-            }
             parsed_variables.push(Box::new(new_var));
         }
 
@@ -372,7 +346,7 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
     }).collect()
 }
 
-fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
+fn parse_pous(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
@@ -481,7 +455,7 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, param_o
                 if current_variable.location.span == CodeSpan::None {
                     continue; //discard compiler interally generated variables
                 }
-                let maybe_variablenode = generate_variable_element(current_variable, &matching_metadata.name, param_order, c, use_order_attr);
+                let maybe_variablenode = generate_variable_element(current_variable, generation_parameters, &matching_metadata.name, param_order, c, use_order_attr);
 
                 if maybe_variablenode.is_none() {
                     continue;
@@ -604,15 +578,23 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, param_o
     Ok(())
 }
 
-fn generate_variable_element(current_variable: &Variable, pou_name: &String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
+fn generate_variable_element(current_variable: &Variable, generation_parameters: &GenerationParameters, pou_name: &String, preused_order: &mut HashSet<(String, usize)>, order: usize, add_order: bool) -> Option<SGenVariable> {
     let maybe_typename = current_variable.data_type_declaration.get_name();
-    let mut typename_node = STypeName::new();
 
-    if let Some(typename) = maybe_typename {
-        typename_node = typename_node.content(String::from(typename));
+    if maybe_typename.is_none() {
+        return None; //every variable must have a typename
+    }
+    let mut typename = maybe_typename.unwrap();
+    println!("typename: {}", &typename);
+
+    if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
+        typename = "String[1986]";
     }
 
-    let typenode = SType::new()
+    let typename_node = STypeName::new() //<TypeName>
+        .content(String::from(typename));
+
+    let typenode = SType::new() //<Type>
         .child(&typename_node);
 
     let mut variable_node = SGenVariable::new()

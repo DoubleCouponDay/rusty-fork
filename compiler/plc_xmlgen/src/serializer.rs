@@ -122,7 +122,7 @@ macro_rules! newtype_impl {
                 let mut inner = self.inner();
                 inner.content = Some(input);
                 Self(inner)
-            }            
+            }
 
             pub fn id(local_id: i32) -> Self {
                 let new = $name_struct::new();
