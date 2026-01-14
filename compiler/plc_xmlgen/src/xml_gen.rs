@@ -99,7 +99,7 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
 
             if current_variable.location.span == CodeSpan::None {
                 continue; //discard compiler interally generated variables
-            }            
+            }
 
             let network_publish = match current_global.kind {
                 VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
@@ -446,7 +446,7 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, param_o
         let mut constant_externals = SExternalVars::new()
             .attribute_str("constant", "true");
 
-        //<Vars
+        //<Vars>
         let mut vars = SVars::new()
             .attribute_str("accessSpecifier", "private");
 
@@ -476,6 +476,10 @@ fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, param_o
             for c in 0..current_block.variables.len() {
                 let current_variable = &current_block.variables[c];
                 let use_order_attr = current_block.kind != VariableBlockType::Local;
+
+                if current_variable.location.span == CodeSpan::None {
+                    continue; //discard compiler interally generated variables
+                }
                 let maybe_variablenode = generate_variable_element(current_variable, &matching_metadata.name, param_order, c, use_order_attr);
 
                 if maybe_variablenode.is_none() {
