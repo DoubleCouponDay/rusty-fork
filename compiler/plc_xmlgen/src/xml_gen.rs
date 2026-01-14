@@ -592,7 +592,6 @@ fn generate_variable_element(current_variable: &Variable, generation_parameters:
         return None; //every variable must have a typename
     }
     let mut typename = maybe_typename.unwrap();
-    println!("typename: {}", &typename);
 
     if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
         typename = "String[1986]";
