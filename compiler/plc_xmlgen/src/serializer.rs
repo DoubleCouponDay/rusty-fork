@@ -475,14 +475,10 @@ impl SAction {
     }
 }
 
-impl SOmronVariable {
+impl SGenVariable {
     pub fn with_name(self, name: String) -> Self {
         self.attribute("name".to_string(), name)
     }
-}
-
-impl SOmronData {
-
 }
 
 //Omron specific xml
@@ -495,7 +491,7 @@ newtype_impl!(SType, "Type", false);
 newtype_impl!(STypeName, "TypeName", false);
 newtype_impl!(SInitialValue, "InitialValue", false);
 newtype_impl!(SSimpleValue, "SimpleValue", false);
-newtype_impl!(SOmronVariable, "Variable", false);
+newtype_impl!(SGenVariable, "Variable", false);
 newtype_impl!(SOmronAddData, "AddData", false);
 newtype_impl!(SOmronData, "Data", false);
 newtype_impl!(SOmronGlobalVariableAdditionalProperties, "GlobalVariableAdditionalProperties", false);
@@ -520,6 +516,7 @@ newtype_impl!(SExternalVars, "ExternalVars", false);
 newtype_impl!(SInputVars, "InputVars", false);
 newtype_impl!(SInoutVars, "InoutVars", false);
 newtype_impl!(SOutputVars, "OutputVars", false);
+newtype_impl!(SAddress, "Address", false);
 
 pub const GLOBAL_NAMESPACE: &'static str = "GlobalNamespace";
 pub const INSTANCES: &'static str = "Instances";

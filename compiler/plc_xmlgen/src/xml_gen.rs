@@ -1,5 +1,4 @@
-use core::ascii;
-use std::{borrow::Cow, collections::HashMap, fs::{File, copy, read}, io::{Error, Read, Seek, SeekFrom, read_to_string}, ops::Range, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::HashMap, fs::{File, copy}, io::{Error, Read, Seek, SeekFrom}, ops::Range, path::{Path, PathBuf}};
 
 use super::serializer::*;
 
@@ -8,8 +7,6 @@ use plc_ast::ast::*;
 use plc_source::source_location::{CodeSpan, TextLocation};
 use xml::{attribute::Attribute, common::XmlVersion, name::Name, namespace::Namespace, writer::XmlEvent, EmitterConfig, EventWriter};
 use chrono::Local;
-
-const NEWLINE: &str = if cfg!(windows) { "\r\n" } else { "\n" };
 
 #[derive(Debug)]
 pub struct GenerationParameters {
@@ -68,10 +65,133 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
 
         let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, &mut output_root);
         let _ = parse_custom_types(generation_parameters, current_unit, &mut output_root);
-        let _ = parse_pous(current_unit, unit_name, schema_path, &mut output_root);
+        let _ = parse_pous(current_unit, schema_path, &mut output_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
+}
+
+fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+    let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
+    let globals_root = maybe_globals_root.ok_or(())?;
+
+    //create the 4 destinations for <GlobalVars>
+    let mut constant_retain_globals = SGlobalVars::new()
+        .attribute_str("constant", "true")
+        .attribute_str("retain", "true");
+
+    let mut constant_globals = SGlobalVars::new()
+        .attribute_str("constant", "true");
+
+    let mut retain_globals = SGlobalVars::new()
+        .attribute_str("retain", "true");
+
+    let mut normal_globals = SGlobalVars::new();
+
+    //parse the unit into nodes
+    for a in 0..current_unit.global_vars.len() {
+        let current_global = &current_unit.global_vars[a];
+        let mut parsed_variables: Vec<Box<dyn IntoNode>> = Vec::with_capacity(current_global.variables.len());
+
+        for b in 0..current_global.variables.len() {
+            let current_variable = &current_global.variables[b];
+
+            if current_variable.location.span == CodeSpan::None {
+                continue; //discard compiler interally generated variables
+            }            
+
+            let network_publish = match current_global.kind {
+                VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
+                _ => {
+                    continue; //skip non global variables
+                }
+            };
+
+            let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
+                .attribute("networkPublish".to_string(), network_publish);
+
+            let data_node = SOmronData::new() //<Data>
+                .attribute_str("name", schema_path)
+                .attribute_str("handleUnknown", "discard")
+                .child(&additional_property_node);
+
+            let adddata_node = SOmronAddData::new() //<AddData>
+                .child(&data_node);
+
+            let maybe_typename = current_variable.data_type_declaration.get_name();
+
+            if maybe_typename.is_none() { //every variable needs a typename
+                continue;
+            }
+            let mut typename = maybe_typename.unwrap().to_string();
+
+            if typename.to_lowercase() == "string" && generation_parameters.output_xml_omron { //convert to omron string type
+                typename = String::from("String[1986]");
+            }
+
+            let typename_node = STypeName::new() //<TypeName>
+                .content(typename);
+
+            let type_node = SType::new() //<Type>
+                .child(&typename_node);
+
+            let mut new_var = SGenVariable::new() //<Variable>
+                .with_name(current_variable.name.clone())
+                .child(&adddata_node)
+                .child(&type_node);
+
+            if let Some(variable_node) = &current_variable.initializer && let AstStatement::Literal(variable_value
+            ) = &variable_node.stmt {
+                let simple_node = SSimpleValue::new() //<SimpleValue />
+                    .attribute(String::from("value"), variable_value.to_string())
+                    .close();
+
+                let initial_node = SInitialValue::new() //<InitialValue>
+                    .child(&simple_node);
+
+                new_var = new_var.child(&initial_node);
+            }
+            parsed_variables.push(Box::new(new_var));
+        }
+
+        //add globals to the correct element
+        if current_global.constant && current_global.retain {
+            constant_retain_globals = constant_retain_globals.children(parsed_variables);
+        }
+
+        else if current_global.constant {
+            constant_globals = constant_globals.children(parsed_variables);
+        }
+
+        else if current_global.retain {
+            retain_globals = retain_globals.children(parsed_variables);
+        }
+
+        else {
+            normal_globals = normal_globals.children(parsed_variables);
+        }
+    }
+    
+    //relinquish copies of the nodes into the tree
+    let name_label = String::from("name");
+    let resources_name = format!("{}_{}", unit_name, RESOURCE);
+    
+    let resource_node = SResource::new()
+        .attribute(name_label.clone(), resources_name)
+        .attribute_str("resourceTypeName", "")
+        .child(&constant_retain_globals)
+        .child(&constant_globals)
+        .child(&retain_globals)
+        .child(&normal_globals);
+
+    let config_name = format!("{}_{}", unit_name, CONFIGURATION);
+
+    let configuration_node = SConfiguration::new()
+        .attribute(name_label, config_name)
+        .child(&resource_node);
+
+    globals_root.child_borrowed(&configuration_node); //need to borrow a mut Node so I don't break the root nodes reference to the globals node
+    return Ok(());
 }
 
 fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
@@ -249,7 +369,7 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
     }).collect()
 }
 
-fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
+fn parse_pous(current_unit: &CompilationUnit, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
@@ -353,63 +473,58 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
             for c in 0..current_block.variables.len() {
                 let current_variable = &current_block.variables[c];
 
+                let maybe_variablenode = generate_variable_element(current_variable);
+
+                if maybe_variablenode.is_none() {
+                    continue;
+                }
+                let variable_node = maybe_variablenode.unwrap();
+
                 match current_block.kind {
                     VariableBlockType::Local => {
                         if current_block.constant && current_block.retain {
-                            let maybe_typename = current_variable.data_type_declaration.get_name();
-
-                            if maybe_typename.is_none() {
-                                continue; //every variable needs a typename
-                            }
-
-                            let typename = STypeName::new()
-                                .content(String::from(maybe_typename.unwrap()));
-
-                            let typenode = SType::new()
-                                .child(&typename);
-
-                            let variable_node = SOmronVariable::new()
-                                .attribute(String::from("name"), current_variable.name.clone())
-                                .child(&typenode);
-
-                            if current_variable.address.is_some() {
-                                let address = current_variable.address.unwrap();
-                                let address_str = address.stmt;
-                                variable_node = variable_node.child()
-                            }
-
-                            constant_retain_vars = constant_retain_vars.child(&child);
+                            constant_retain_vars = constant_retain_vars.child(&variable_node);
                         }
 
                         else if current_block.constant {
-
+                            constant_vars = constant_vars.child(&variable_node);
                         }
 
                         else if current_block.retain {
-
+                            retain_vars = retain_vars.child(&variable_node);
                         }
 
                         else {
-
+                            vars = vars.child(&variable_node);
                         }
                     },
                     VariableBlockType::Temp => {
                         if current_block.constant {
-
+                            constant_temp_vars = constant_temp_vars.child(&variable_node);
                         }
 
                         else {
-
+                            temp_vars = temp_vars.child(&variable_node);
                         }
                     },
-                    VariableBlockType::Input(argument_property) => {
-
+                    VariableBlockType::Input(_) => {
+                        input_vars = input_vars.child(&variable_node);
                     },
-                    VariableBlockType::Output => todo!(),
+                    VariableBlockType::Output => {
+                        output_vars = output_vars.child(&variable_node);
+                    },
                     VariableBlockType::InOut => {
-
+                        inout_vars = inout_vars.child(&variable_node);
                     },
-                    VariableBlockType::External => todo!(),
+                    VariableBlockType::External => {
+                        if current_block.constant {
+                            constant_externals = constant_externals.child(&variable_node);                            
+                        }
+
+                        else {
+                            externals = externals.child(&variable_node);
+                        }
+                    },
                     _ => ()
                 }
             }
@@ -481,6 +596,52 @@ fn parse_pous(current_unit: &CompilationUnit, unit_name: &str, schema_path: &'st
     Ok(())
 }
 
+fn generate_variable_element(current_variable: &Variable) -> Option<SGenVariable> {
+    let maybe_typename = current_variable.data_type_declaration.get_name();
+
+    if maybe_typename.is_none() {
+        return None; //every variable needs a typename
+    }
+
+    let typename = STypeName::new()
+        .content(String::from(maybe_typename.unwrap()));
+
+    let typenode = SType::new()
+        .child(&typename);
+
+    let mut variable_node = SGenVariable::new()
+        .attribute(String::from("name"), current_variable.name.clone())
+        .child(&typenode);
+
+    //<InitialValue>
+    if let Some(variable_ast) = &current_variable.initializer && let AstStatement::Literal(literal_value
+    ) = &variable_ast.stmt {
+        let simple_node = SSimpleValue::new()
+            .attribute(String::from("value"), literal_value.to_string())
+            .close();
+
+        let initial_node = SInitialValue::new()
+            .child(&simple_node);
+
+        variable_node = variable_node.child(&initial_node);
+    }                            
+
+    //<Address>
+    if let Some(address) = &current_variable.address {
+        
+        match &address.stmt {
+            AstStatement::Literal(ast_literal) => {
+                let address_node = SAddress::new()
+                    .attribute(String::from("address"), ast_literal.to_string());
+
+                variable_node = variable_node.child(&address_node);
+            },
+            _ => () //not every variable has an address
+        }
+    }
+    Some(variable_node)
+}
+
 fn grab_file_statement_from_span(file_path: &'static str, range: &Range<TextLocation>) -> Option<String> {
     let mut file = File::open(file_path).expect(format!("source file exists: {}", file_path).as_str());
     let unsigned_start = TryInto::<u64>::try_into(range.start.offset).expect("u64");
@@ -495,129 +656,6 @@ fn grab_file_statement_from_span(file_path: &'static str, range: &Range<TextLoca
     file.read_exact(&mut buffer.as_mut_slice()).expect("reads successfully");
     let formatted = String::from_utf8(buffer).expect("valid utf8 string");
     Some(formatted)
-}
-
-fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, output_root: &mut Node) -> Result<(), ()> {
-    let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
-    let globals_root = maybe_globals_root.ok_or(())?;
-
-    //create the 4 destinations for <GlobalVars>
-    let mut constant_retain_globals = SGlobalVars::new()
-        .attribute_str("constant", "true")
-        .attribute_str("retain", "true");
-
-    let mut constant_globals = SGlobalVars::new()
-        .attribute_str("constant", "true");
-
-    let mut retain_globals = SGlobalVars::new()
-        .attribute_str("retain", "true");
-
-    let mut normal_globals = SGlobalVars::new();
-
-    //parse the unit into nodes
-    for a in 0..current_unit.global_vars.len() {
-        let current_global = &current_unit.global_vars[a];
-        let mut parsed_variables: Vec<Box<dyn IntoNode>> = Vec::with_capacity(current_global.variables.len());
-
-        for b in 0..current_global.variables.len() {
-            let current_variable = &current_global.variables[b];
-
-            if current_variable.location.span == CodeSpan::None {
-                continue; //discard compiler interally generated variables
-            }            
-
-            let network_publish = match current_global.kind {
-                VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
-                _ => {
-                    continue; //skip non global variables
-                }
-            };
-
-            let additional_property_node = SOmronGlobalVariableAdditionalProperties::new()
-                .attribute("networkPublish".to_string(), network_publish);
-
-            let data_node = SOmronData::new() //<Data>
-                .attribute_str("name", schema_path)
-                .attribute_str("handleUnknown", "discard")
-                .child(&additional_property_node);
-
-            let adddata_node = SOmronAddData::new() //<AddData>
-                .child(&data_node);
-
-            let maybe_typename = current_variable.data_type_declaration.get_name();
-
-            if maybe_typename.is_none() { //every variable needs a typename
-                continue;
-            }
-            let mut typename = maybe_typename.unwrap().to_string();
-
-            if typename.to_lowercase() == "string" && generation_parameters.output_xml_omron { //convert to omron string type
-                typename = String::from("String[1986]");
-            }
-
-            let typename_node = STypeName::new() //<TypeName>
-                .content(typename);
-
-            let type_node = SType::new() //<Type>
-                .child(&typename_node);
-
-            let mut new_var = SOmronVariable::new() //<Variable>
-                .with_name(current_variable.name.clone())
-                .child(&adddata_node)
-                .child(&type_node);
-
-            if let Some(variable_node) = &current_variable.initializer && let AstStatement::Literal(variable_value
-            ) = &variable_node.stmt {
-                let simple_node = SSimpleValue::new() //<SimpleValue />
-                    .attribute(String::from("value"), variable_value.to_string())
-                    .close();
-
-                let initial_node = SInitialValue::new() //<InitialValue>
-                    .child(&simple_node);
-
-                new_var = new_var.child(&initial_node);
-            }
-            parsed_variables.push(Box::new(new_var));
-        }
-
-        //add globals to the correct element
-        if current_global.constant && current_global.retain {
-            constant_retain_globals = constant_retain_globals.children(parsed_variables);
-        }
-
-        else if current_global.constant {
-            constant_globals = constant_globals.children(parsed_variables);
-        }
-
-        else if current_global.retain {
-            retain_globals = retain_globals.children(parsed_variables);
-        }
-
-        else {
-            normal_globals = normal_globals.children(parsed_variables);
-        }
-    }
-    
-    //relinquish copies of the nodes into the tree
-    let name_label = String::from("name");
-    let resources_name = format!("{}_{}", unit_name, RESOURCE);
-    
-    let resource_node = SResource::new()
-        .attribute(name_label.clone(), resources_name)
-        .attribute_str("resourceTypeName", "")
-        .child(&constant_retain_globals)
-        .child(&constant_globals)
-        .child(&retain_globals)
-        .child(&normal_globals);
-
-    let config_name = format!("{}_{}", unit_name, CONFIGURATION);
-
-    let configuration_node = SConfiguration::new()
-        .attribute(name_label, config_name)
-        .child(&resource_node);
-
-    globals_root.child_borrowed(&configuration_node); //need to borrow a mut Node so I don't break the root nodes reference to the globals node
-    return Ok(());
 }
 
 pub fn write_xml_file(output_path: &PathBuf, treenode: Node) -> Result<(), Error> {
