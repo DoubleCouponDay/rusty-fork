@@ -395,8 +395,11 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
 
         if (current_impl.pou_type == PouType::Function || current_impl.pou_type == PouType::FunctionBlock) && 
             let Some(result_type) = &matching_metadata.return_type && let Some(type_name) = result_type.get_name() {
-            typename_node = typename_node.content(String::from(type_name));
-                
+            typename_node = typename_node.content(String::from(type_name));                
+        }
+
+        else {
+            typename_node = typename_node.content(String::from("BOOL")); //default to boolean output
         }
 
         resulttype_node = resulttype_node.child(&typename_node);
