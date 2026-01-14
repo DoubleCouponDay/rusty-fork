@@ -67,15 +67,15 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
         }
         let borrowed_root = &mut output_root;
 
-        let _ = parse_globals(generation_parameters, current_unit, unit_name, schema_path, borrowed_order, borrowed_root);
-        let _ = parse_custom_types(generation_parameters, current_unit, borrowed_root);
-        let _ = parse_pous(generation_parameters, current_unit, schema_path, borrowed_order, borrowed_root);
+        let _ = generate_globals(generation_parameters, current_unit, unit_name, schema_path, borrowed_order, borrowed_root);
+        let _ = generate_custom_types(generation_parameters, current_unit, borrowed_root);
+        let _ = generate_pous(generation_parameters, current_unit, schema_path, borrowed_order, borrowed_root);
     }
     write_xml_file(output_path, output_root)?;
     Ok(())
 }
 
-fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, preused_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
+fn generate_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, preused_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
     let globals_root = maybe_globals_root.ok_or(())?;
 
@@ -175,7 +175,7 @@ fn parse_globals(generation_parameters: &GenerationParameters, current_unit: &Co
     return Ok(());
 }
 
-fn parse_custom_types(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
+fn generate_custom_types(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;    
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
@@ -351,7 +351,7 @@ fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<
     }).collect()
 }
 
-fn parse_pous(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
+fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
