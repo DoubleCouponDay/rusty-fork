@@ -165,7 +165,8 @@ int main() {
 
 ## Native Windows Usage Example
 
-- Ensure [`LLVM 14.0.6`](https://github.com/PLC-lang/llvm-package-windows/releases/tag/v14.0.6) is installed and it's `bin` folder is added to your `PATH` environment variable.
+
+- Ensure [`LLVM 21.1.7`](https://github.com/PLC-lang/llvm-package-windows/releases/tag/v21.1.7) is installed and it's `bin` folder is added to your `PATH` environment variable.
 
 - Install `plc.zip` from the [Windows Build Pipeline](https://github.com/PLC-lang/rusty/actions/workflows/windows.yml).
 
@@ -204,7 +205,6 @@ This example allows linking with Rusty's Standard Library.
     plc ./examples/hello_world.st -c -l iec61131std -l ws2_32 -l ntdll -l userenv -o ./hello_world.o
     clang ./hello_world.o --shared -l iec61131std -l ws2_32 -l ntdll -l userenv -fuse-ld=lld-link "-Wl,/DEF:exports.def" -o ./hello_world.dll
     ```
-
 
 ## Generating open XML exchange format
 

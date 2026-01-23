@@ -13,7 +13,7 @@ use inkwell::{
     types::BasicTypeEnum,
     values::{BasicMetadataValueEnum, FunctionValue, GlobalValue, PointerValue},
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use plc_ast::ast::LinkageType;
 use plc_diagnostics::diagnostics::Diagnostic;
@@ -171,7 +171,13 @@ pub struct DebugBuilder<'ink> {
     context: &'ink Context,
     debug_info: DebugInfoBuilder<'ink>,
     compile_unit: DICompileUnit<'ink>,
+    /// Registered debug types, keyed by lowercased type name.
     types: FxHashMap<String, DebugType<'ink>>,
+    /// Tracks types currently being processed to detect and handle recursive type definitions.
+    /// When a type references itself (e.g., a struct containing a pointer to itself), we detect
+    /// this cycle by checking if the type is already in this set. If so, we return a forward
+    /// declaration instead of recursing infinitely.
+    processing: FxHashSet<String>,
     variables: FxHashMap<VariableKey, DILocalVariable<'ink>>,
     optimization: OptimizationLevel,
     files: FxHashMap<&'static str, DIFile<'ink>>,
@@ -247,6 +253,7 @@ impl<'ink> DebugBuilderEnum<'ink> {
                     debug_info,
                     compile_unit,
                     types: Default::default(),
+                    processing: Default::default(),
                     variables: Default::default(),
                     optimization,
                     files: Default::default(),
@@ -288,7 +295,7 @@ impl<'ink> DebugBuilder<'ink> {
         let res = self
             .debug_info
             .create_basic_type(name, size, encoding as u32, DIFlagsConstants::PUBLIC)
-            .map_err(|err| Diagnostic::codegen_error(err, location))?;
+            .map_err(|err| Diagnostic::codegen_error(err.to_string(), location))?;
         self.register_concrete_type(name, DebugType::Basic(res));
         Ok(())
     }
@@ -305,73 +312,70 @@ impl<'ink> DebugBuilder<'ink> {
             return Ok(());
         }
 
-        // Create each type
-        let index_types = members
-            .iter()
-            .filter(|it| !(it.is_temp() || it.is_variadic() || it.is_var_external()))
-            .map(|it| (it.get_name(), it.get_type_name(), &it.source_location, it.is_constant()))
-            .map(|(name, type_name, location, is_constant)| {
-                index.get_type(type_name.as_ref()).map(|dt| (name, dt, location, is_constant))
-            })
-            .collect::<Result<Vec<_>, Diagnostic>>()?;
-
-        let struct_type = types_index.get_associated_type(name).map(|ty| match ty {
+        let struct_type = match types_index.get_associated_type(name)? {
             BasicTypeEnum::StructType(value) => value,
             _ => self.context.opaque_struct_type(name),
-        })?;
+        };
+
+        // Can't compute offsets for opaque structs - register as forward declaration
+        if struct_type.is_opaque() {
+            self.register_concrete_type(name, self.create_forward_declaration(name));
+            return Ok(());
+        }
 
         let file = location
             .get_file_name()
             .map(|it| self.get_or_create_debug_file(it))
             .unwrap_or_else(|| self.compile_unit.get_file());
 
-        let mut types = vec![];
-
         let super_ty_name = index.find_pou(name).and_then(|it| it.get_super_class());
-        for (element_index, (member_name, dt, location, is_constant)) in index_types.iter().enumerate() {
-            let di_type = self.get_or_create_debug_type(dt, index, types_index)?;
-            let di_type = self.apply_const_type_if_needed(di_type.into(), *is_constant);
 
-            // Get the size and alignment from LLVM
-            let llvm_type = types_index.find_associated_type(dt.get_name());
-            let align_bits =
-                llvm_type.map(|ty| self.target_data.get_preferred_alignment(&ty) * 8).unwrap_or(0);
-            let size_bits = llvm_type.map(|ty| self.target_data.get_bit_size(&ty)).unwrap_or(0);
+        // Collect member debug info
+        let member_types: Vec<_> = members
+            .iter()
+            .filter(|it| !(it.is_temp() || it.is_variadic() || it.is_var_external()))
+            .enumerate()
+            .filter_map(|(element_index, member)| {
+                let dt = index.get_type(member.get_type_name().as_ref()).ok()?;
+                let di_type = self.get_or_create_debug_type(dt, index, types_index).ok()?;
+                let di_type = self.apply_const_type_if_needed(di_type.into(), member.is_constant());
 
-            // Get LLVM's calculated offset
-            let offset_bits = self
-                .target_data
-                .offset_of_element(&struct_type, element_index as u32)
-                .map(|offset| offset * 8)
-                .unwrap_or(0);
+                let llvm_type = types_index.find_associated_type(dt.get_name());
+                let align_bits =
+                    llvm_type.map(|ty| self.target_data.get_preferred_alignment(&ty) * 8).unwrap_or(0);
+                let size_bits = llvm_type.map(|ty| self.target_data.get_bit_size(&ty)).unwrap_or(0);
+                let offset_bits = self
+                    .target_data
+                    .offset_of_element(&struct_type, element_index as u32)
+                    .map(|offset| offset * 8)
+                    .unwrap_or(0);
 
-            let member_name = super_ty_name
-                .filter(|name| member_name == &format!("__{name}"))
-                .map_or(*member_name, |_| "SUPER");
+                let member_name = super_ty_name
+                    .filter(|sname| member.get_name() == format!("__{sname}"))
+                    .map_or(member.get_name(), |_| "SUPER");
 
-            // Create the member type with LLVM's calculated offset
-            types.push(
-                self.debug_info
-                    .create_member_type(
-                        file.as_debug_info_scope(),
-                        member_name,
-                        file,
-                        location.get_line_plus_one() as u32,
-                        size_bits,
-                        align_bits,
-                        offset_bits,
-                        DIFlags::PUBLIC,
-                        di_type,
-                    )
-                    .as_type(),
-            );
-        }
+                Some(
+                    self.debug_info
+                        .create_member_type(
+                            file.as_debug_info_scope(),
+                            member_name,
+                            file,
+                            member.source_location.get_line_plus_one() as u32,
+                            size_bits,
+                            align_bits,
+                            offset_bits,
+                            DIFlags::PUBLIC,
+                            di_type,
+                        )
+                        .as_type(),
+                )
+            })
+            .collect();
 
-        // Use LLVM's calculation for the struct size
         let llvm_size = self.target_data.get_bit_size(&struct_type);
         let struct_align_bits = self.target_data.get_preferred_alignment(&struct_type) * 8;
 
-        let struct_type = self.debug_info.create_struct_type(
+        let debug_struct = self.debug_info.create_struct_type(
             file.as_debug_info_scope(),
             name,
             file,
@@ -380,13 +384,13 @@ impl<'ink> DebugBuilder<'ink> {
             struct_align_bits,
             DIFlags::PUBLIC,
             None,
-            types.as_slice(),
+            member_types.as_slice(),
             0,
             None,
             name,
         );
 
-        self.register_concrete_type(name, DebugType::Struct(struct_type));
+        self.register_concrete_type(name, DebugType::Struct(debug_struct));
         Ok(())
     }
 
@@ -417,16 +421,39 @@ impl<'ink> DebugBuilder<'ink> {
         Ok(())
     }
 
+    /// Creates a forward-declared struct type for use when resolving recursive type references.
+    /// This is used when a pointer type references a struct that is currently being processed,
+    /// to break the infinite recursion cycle.
+    fn create_forward_declaration(&self, name: &str) -> DebugType<'ink> {
+        let file = self.compile_unit.get_file();
+        let fwd_struct = self.debug_info.create_struct_type(
+            file.as_debug_info_scope(),
+            name,
+            file,
+            0,
+            0, // size unknown for forward declaration
+            0, // align unknown for forward declaration
+            DIFlagsConstants::FWD_DECL,
+            None,
+            &[], // empty elements for forward declaration
+            0,
+            None,
+            name,
+        );
+        DebugType::Struct(fwd_struct)
+    }
+
     fn create_pointer_type(
         &mut self,
         name: &str,
-        inner_type: &str,
+        inner_type_name: &str,
         size: u64,
         index: &Index,
         types_index: &LlvmTypedIndex,
     ) -> Result<(), Diagnostic> {
-        let inner_type = index.get_type(inner_type)?;
-        let inner_type = if inner_type.is_void() {
+        let inner_type_entry = index.get_type(inner_type_name)?;
+
+        let inner_type = if inner_type_entry.is_void() {
             DebugType::Basic(
                 self.debug_info
                     .create_basic_type(
@@ -435,10 +462,10 @@ impl<'ink> DebugBuilder<'ink> {
                         DebugEncoding::DW_ATE_unsigned as u32,
                         DIFlagsConstants::PUBLIC,
                     )
-                    .map_err(|err| Diagnostic::codegen_error(err, SourceLocation::undefined()))?,
+                    .map_err(|err| Diagnostic::codegen_error(err.to_string(), SourceLocation::undefined()))?,
             )
         } else {
-            self.get_or_create_debug_type(inner_type, index, types_index)?
+            self.get_or_create_debug_type(inner_type_entry, index, types_index)?
         };
 
         let llvm_type = types_index.get_associated_type(name)?;
@@ -486,18 +513,30 @@ impl<'ink> DebugBuilder<'ink> {
         index: &Index,
         types_index: &LlvmTypedIndex,
     ) -> Result<DebugType<'ink>, Diagnostic> {
-        //Try to find a type in the types
         let dt_name = dt.get_name();
-        //Attempt to re-register the type, this will do nothing if the type exists.
-        //TODO: This will crash on recursive datatypes
+        let key = dt_name.to_lowercase();
+
+        // Already registered - return it
+        if let Some(debug_type) = self.types.get(&key) {
+            return Ok(*debug_type);
+        }
+
+        // Currently being processed - return forward declaration to break recursion
+        if self.processing.contains(&key) {
+            log::trace!("Type {dt_name} is being processed, returning forward declaration");
+            return Ok(self.create_forward_declaration(dt_name));
+        }
+
+        // Register the type (this will add it to self.types)
         self.register_debug_type(dt_name, dt, index, types_index)?;
+
         self.types
-            .get(&dt_name.to_lowercase())
+            .get(&key)
             .ok_or_else(|| {
                 Diagnostic::new(format!("Cannot find debug information for type {dt_name}"))
                     .with_error_code("E076")
             })
-            .map(|it| it.to_owned())
+            .copied()
     }
 
     /// Creates debug information for string types using an array + typedef approach.
@@ -730,7 +769,7 @@ impl<'ink> DebugBuilder<'ink> {
             param_offset += 1;
         }
         if implementation.get_implementation_type().is_function_method_or_init() {
-            let declared_params = index.get_declared_parameters(implementation.get_call_name());
+            let declared_params = index.get_available_parameters(implementation.get_call_name());
             // Register all parameters for debugging
             for (index, variable) in declared_params.iter().enumerate() {
                 self.register_parameter(variable, index + param_offset, func);
@@ -812,65 +851,74 @@ impl<'ink> Debug<'ink> for DebugBuilder<'ink> {
         index: &'idx Index,
         types_index: &LlvmTypedIndex,
     ) -> Result<(), Diagnostic> {
-        //check if the type is currently registered
-        if !self.types.contains_key(&name.to_lowercase()) {
-            let type_info = datatype.get_type_information();
-            let size = types_index
-                .find_associated_type(name)
-                .or_else(|| types_index.find_associated_pou_type(name))
-                .map(|llvm_type| self.target_data.get_bit_size(&llvm_type))
-                .unwrap_or(0);
-            let location = &datatype.location;
-            log::trace!("Creating debug info for type {name} with size {size} and info {type_info:?}");
-            match type_info {
-                DataTypeInformation::Struct { members, .. } => {
-                    self.create_struct_type(name, members.as_slice(), location, index, types_index)
-                }
-                DataTypeInformation::Array { name, inner_type_name, dimensions, .. } => {
-                    self.create_array_type(name, inner_type_name, dimensions, size, index, types_index)
-                }
-                DataTypeInformation::Pointer { name, inner_type_name, .. } => {
-                    self.create_pointer_type(name, inner_type_name, size, index, types_index)
-                }
-                DataTypeInformation::Integer { signed, size, .. } => {
-                    let encoding = if type_info.is_bool() {
-                        DebugEncoding::DW_ATE_boolean
-                    } else if type_info.is_character() {
-                        DebugEncoding::DW_ATE_UTF
-                    } else {
-                        match *signed {
-                            true => DebugEncoding::DW_ATE_signed,
-                            false => DebugEncoding::DW_ATE_unsigned,
-                        }
-                    };
-                    self.create_basic_type(name, *size as u64, encoding, location)
-                }
-                DataTypeInformation::Float { size, .. } => {
-                    self.create_basic_type(name, *size as u64, DebugEncoding::DW_ATE_float, location)
-                }
-                DataTypeInformation::String { size: string_size, encoding, .. } => {
-                    let length = string_size
-                        .as_int_value(index)
-                        .map_err(|err| Diagnostic::codegen_error(err, SourceLocation::undefined()))?;
-                    self.create_string_type(name, length, *encoding, size, index, types_index)
-                }
-                DataTypeInformation::Alias { name, referenced_type }
-                | DataTypeInformation::Enum { name, referenced_type, .. } => {
-                    self.create_typedef_type(name, referenced_type, location, index, types_index)
-                }
-                DataTypeInformation::SubRange { name, referenced_type, sub_range } => {
-                    self.create_subrange_type(name, referenced_type, sub_range, location, index, types_index)
-                }
-                // Other types are just derived basic types
-                _ => {
-                    log::debug!("Type {name} has unsupported debug info generation for {type_info:?}");
-                    Ok(())
-                }
-            }
-        } else {
+        let key = name.to_lowercase();
+
+        // Already registered
+        if self.types.contains_key(&key) {
             log::trace!("Type {name} already has debug info");
-            Ok(())
+            return Ok(());
         }
+
+        // Track that we're processing this type (for recursion detection in get_or_create_debug_type)
+        self.processing.insert(key.clone());
+
+        let type_info = datatype.get_type_information();
+        let size = types_index
+            .find_associated_type(name)
+            .or_else(|| types_index.find_associated_pou_type(name))
+            .map(|llvm_type| self.target_data.get_bit_size(&llvm_type))
+            .unwrap_or(0);
+        let location = &datatype.location;
+        log::trace!("Creating debug info for type {name} with size {size} and info {type_info:?}");
+
+        let result = match type_info {
+            DataTypeInformation::Struct { members, .. } => {
+                self.create_struct_type(name, members.as_slice(), location, index, types_index)
+            }
+            DataTypeInformation::Array { name, inner_type_name, dimensions, .. } => {
+                self.create_array_type(name, inner_type_name, dimensions, size, index, types_index)
+            }
+            DataTypeInformation::Pointer { name, inner_type_name, .. } => {
+                self.create_pointer_type(name, inner_type_name, size, index, types_index)
+            }
+            DataTypeInformation::Integer { signed, size, .. } => {
+                let encoding = if type_info.is_bool() {
+                    DebugEncoding::DW_ATE_boolean
+                } else if type_info.is_character() {
+                    DebugEncoding::DW_ATE_UTF
+                } else {
+                    match *signed {
+                        true => DebugEncoding::DW_ATE_signed,
+                        false => DebugEncoding::DW_ATE_unsigned,
+                    }
+                };
+                self.create_basic_type(name, *size as u64, encoding, location)
+            }
+            DataTypeInformation::Float { size, .. } => {
+                self.create_basic_type(name, *size as u64, DebugEncoding::DW_ATE_float, location)
+            }
+            DataTypeInformation::String { size: string_size, encoding, .. } => {
+                let length = string_size
+                    .as_int_value(index)
+                    .map_err(|err| Diagnostic::codegen_error(err, SourceLocation::undefined()))?;
+                self.create_string_type(name, length, *encoding, size, index, types_index)
+            }
+            DataTypeInformation::Alias { name, referenced_type }
+            | DataTypeInformation::Enum { name, referenced_type, .. } => {
+                self.create_typedef_type(name, referenced_type, location, index, types_index)
+            }
+            DataTypeInformation::SubRange { name, referenced_type, sub_range } => {
+                self.create_subrange_type(name, referenced_type, sub_range, location, index, types_index)
+            }
+            // Other types are just derived basic types
+            _ => {
+                log::debug!("Type {name} has unsupported debug info generation for {type_info:?}");
+                Ok(())
+            }
+        };
+
+        self.processing.remove(&key);
+        result
     }
 
     fn create_global_variable(
@@ -1048,9 +1096,44 @@ impl<'ink> Debug<'ink> for DebugBuilder<'ink> {
             scope,
             None,
         );
+
         let key = VariableKey::new(name, Some(&function_scope.linking_context.get_call_name_for_ir()));
         let variable = self.variables.get(&key);
-        self.debug_info.insert_declare_at_end(value, variable.copied(), None, location, block);
+
+        if variable.is_none() {
+            // LLVM 19+ crashes with a segfault when `LLVMDIBuilderInsertDeclareRecordAtEnd` receives
+            // a null DILocalVariable pointer. Skip inserting the debug declare if the variable
+            // wasn't registered. To test, the unit test`actions_debug` should segfault when not
+            // early-returning here.
+            return;
+        }
+
+        // Workaround until inkwell 0.9 is released, see https://github.com/TheDan64/inkwell/issues/613
+        fn insert_declare_at_end_raw(
+            debug_info: &DebugInfoBuilder,
+            storage: PointerValue,
+            var_info: Option<DILocalVariable>,
+            expr: Option<inkwell::debug_info::DIExpression>,
+            debug_loc: inkwell::debug_info::DILocation,
+            block: BasicBlock,
+        ) {
+            // When expr is None, we create an empty expression (same as inkwell does internally).
+            let expr = expr.unwrap_or_else(|| debug_info.create_expression(vec![]));
+            unsafe {
+                inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDeclareRecordAtEnd(
+                    debug_info.as_mut_ptr(),
+                    inkwell::values::AsValueRef::as_value_ref(&storage),
+                    var_info.map(|v| v.as_mut_ptr()).unwrap_or(std::ptr::null_mut()),
+                    expr.as_mut_ptr(),
+                    debug_loc.as_mut_ptr(),
+                    block.as_mut_ptr(),
+                );
+            }
+        }
+
+        // TODO: Replace function call below with `self.debug_info.insert_declare_at_end(value, variable.copied(), None, location, block);`
+        // once inkwell 0.9 is released.
+        insert_declare_at_end_raw(&self.debug_info, value, variable.copied(), None, location, block);
     }
 
     fn finalize(&self) {

@@ -1714,7 +1714,7 @@ fn aliased_hardware_access_variable_has_implicit_initial_value_declaration() {
     );
 
     // Although foo has no initial value in its declaration, we inject one in the pre-processor
-    assert_debug_snapshot!(index.find_global_variable("foo").unwrap(), @r###"
+    assert_debug_snapshot!(index.find_global_variable("foo").unwrap(), @r#"
     VariableIndexEntry {
         name: "foo",
         qualified_name: "foo",
@@ -1770,7 +1770,7 @@ fn aliased_hardware_access_variable_has_implicit_initial_value_declaration() {
         },
         varargs: None,
     }
-    "###);
+    "#);
 }
 
 #[test]
@@ -1786,7 +1786,7 @@ fn aliased_hardware_access_variable_creates_global_var_for_address() {
         ",
     );
 
-    assert_debug_snapshot!(index.find_global_variable("__PI_1_2_3_4").unwrap(), @r###"
+    assert_debug_snapshot!(index.find_global_variable("__PI_1_2_3_4").unwrap(), @r#"
     VariableIndexEntry {
         name: "__PI_1_2_3_4",
         qualified_name: "__PI_1_2_3_4",
@@ -1808,7 +1808,7 @@ fn aliased_hardware_access_variable_creates_global_var_for_address() {
         },
         varargs: None,
     }
-    "###);
+    "#);
 
     assert_debug_snapshot!(index.find_type("__global_foo"), @r#"
     Some(
@@ -1853,7 +1853,7 @@ fn aliased_hardware_access_variable_is_initialized_with_the_address_as_ref() {
     let foo_init_id = foo.initial_value.unwrap();
 
     // ...the injected initial value is simply the internally created global mangled variabled
-    assert_debug_snapshot!(index.get_const_expressions().get_constant_statement(&foo_init_id), @r###"
+    assert_debug_snapshot!(index.get_const_expressions().get_constant_statement(&foo_init_id), @r#"
     Some(
         ReferenceExpr {
             kind: Member(
@@ -1864,7 +1864,7 @@ fn aliased_hardware_access_variable_is_initialized_with_the_address_as_ref() {
             base: None,
         },
     )
-    "###);
+    "#);
 }
 
 #[test]
@@ -1920,7 +1920,7 @@ fn address_used_in_2_aliases_only_created_once() {
         ",
     );
 
-    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_4"), @r###"
+    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_4"), @r#"
     Some(
         VariableIndexEntry {
             name: "__PI_1_2_3_4",
@@ -1944,7 +1944,7 @@ fn address_used_in_2_aliases_only_created_once() {
             varargs: None,
         },
     )
-    "###);
+    "#);
 }
 
 #[test]
@@ -1963,7 +1963,7 @@ fn aliased_variable_with_in_or_out_directions_create_the_same_variable() {
         ",
     );
 
-    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_4"), @r###"
+    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_4"), @r#"
     Some(
         VariableIndexEntry {
             name: "__PI_1_2_3_4",
@@ -1987,8 +1987,8 @@ fn aliased_variable_with_in_or_out_directions_create_the_same_variable() {
             varargs: None,
         },
     )
-    "###);
-    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_5"), @r###"
+    "#);
+    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_5"), @r#"
     Some(
         VariableIndexEntry {
             name: "__PI_1_2_3_5",
@@ -2012,7 +2012,7 @@ fn aliased_variable_with_in_or_out_directions_create_the_same_variable() {
             varargs: None,
         },
     )
-    "###);
+    "#);
 }
 
 #[test]
@@ -2029,7 +2029,7 @@ fn if_two_aliased_var_of_different_types_use_the_same_address_the_first_wins() {
         ",
     );
 
-    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_4"), @r###"
+    assert_debug_snapshot!(index.get_globals().get("__pi_1_2_3_4"), @r#"
     Some(
         VariableIndexEntry {
             name: "__PI_1_2_3_4",
@@ -2053,7 +2053,7 @@ fn if_two_aliased_var_of_different_types_use_the_same_address_the_first_wins() {
             varargs: None,
         },
     )
-    "###);
+    "#);
 }
 
 #[test]
@@ -2068,7 +2068,7 @@ fn var_config_hardware_address_creates_global_variable() {
         ",
     );
 
-    assert_debug_snapshot!(index.find_global_variable("__PI_1_2_3_4").unwrap(), @r###"
+    assert_debug_snapshot!(index.find_global_variable("__PI_1_2_3_4").unwrap(), @r#"
     VariableIndexEntry {
         name: "__PI_1_2_3_4",
         qualified_name: "__PI_1_2_3_4",
@@ -2090,7 +2090,7 @@ fn var_config_hardware_address_creates_global_variable() {
         },
         varargs: None,
     }
-    "###);
+    "#);
 }
 
 #[test]
@@ -2540,4 +2540,68 @@ fn enum_ensure_a_combination_of_variables_can_be_assigned_in_function() {
     assert_eq!(index.find_local_member("fn", "green").unwrap().data_type_name, "EnumType");
     assert!(index.find_local_member("fn", "blue").is_some());
     assert_eq!(index.find_local_member("fn", "blue").unwrap().data_type_name, "EnumType");
+}
+
+#[test]
+fn declared_parameters() {
+    let (_, index) = index(
+        r#"
+        FUNCTION_BLOCK FbA
+            VAR
+                localA: DINT;
+            END_VAR
+
+            VAR_INPUT
+                inA: DINT;
+            END_VAR
+
+            VAR_OUTPUT
+                outA: DINT;
+            END_VAR
+
+            VAR_IN_OUT
+                inoutA: DINT;
+            END_VAR
+
+            METHOD methA
+            END_METHOD
+        END_FUNCTION_BLOCK
+
+        FUNCTION_BLOCK FbB EXTENDS FbA
+            VAR
+                localB: DINT;
+            END_VAR
+
+            VAR_INPUT
+                inB: DINT;
+            END_VAR
+
+            VAR_OUTPUT
+                outB: DINT;
+            END_VAR
+
+            VAR_IN_OUT
+                inoutB: DINT;
+            END_VAR
+
+            METHOD methB
+                VAR_INPUT
+                    inB_meth: DINT;
+                END_VAR
+            END_METHOD
+        END_FUNCTION_BLOCK
+    "#,
+    );
+
+    let members = index.get_available_parameters("FbA").iter().map(|var| &var.name).collect::<Vec<_>>();
+    assert_eq!(members, vec!["inA", "outA", "inoutA"]);
+
+    let members = index.get_available_parameters("FbB").iter().map(|var| &var.name).collect::<Vec<_>>();
+    assert_eq!(members, vec!["inA", "outA", "inoutA", "inB", "outB", "inoutB",]);
+
+    let members = index.get_available_parameters("methA").iter().map(|var| &var.name).collect::<Vec<_>>();
+    assert!(members.is_empty());
+
+    let members = index.get_available_parameters("FbB.methB").iter().map(|var| &var.name).collect::<Vec<_>>();
+    assert_eq!(members, vec!["inB_meth"]);
 }
