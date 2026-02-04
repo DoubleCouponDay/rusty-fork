@@ -446,6 +446,7 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
             for c in 0..current_block.variables.len() {
                 let current_variable = &current_block.variables[c];
                 let use_order_attr = current_block.kind != VariableBlockType::Local;
+                println!("pouname: {}, varname: {}", &matching_metadata.name, &current_variable.name);
 
                 if current_variable.location.span == CodeSpan::None {
                     continue; //discard compiler interally generated variables
