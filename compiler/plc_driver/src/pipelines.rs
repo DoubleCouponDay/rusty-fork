@@ -43,7 +43,7 @@ use plc_diagnostics::{
 };
 use plc_index::GlobalContext;
 use plc_lowering::inheritance::InheritanceLowerer;
-use plc_xmlgen::xml_gen::copy_xmlfile_to_output;
+use plc_xmlgen::xml_gen::{GenerationParameters, copy_xmlfile_to_output};
 use project::{
     object::Object,
     project::{LibraryInformation, Project},
@@ -74,7 +74,7 @@ pub trait Pipeline {
     fn parse(&mut self) -> Result<ParsedProject, Diagnostic>;
     fn index(&mut self, project: ParsedProject) -> Result<IndexedProject, Diagnostic>;
     fn annotate(&mut self, project: IndexedProject) -> Result<AnnotatedProject, Diagnostic>;
-    fn generate(&mut self, context: &CodegenContext, project: AnnotatedProject) -> Result<(), Diagnostic>;
+    fn generate(&mut self, context: &CodegenContext, project: AnnotatedProject, compile_options: &CompileOptions) -> Result<(), Diagnostic>;
 }
 
 impl TryFrom<CompileParameters> for BuildPipeline<PathBuf> {
@@ -323,8 +323,13 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
             return Ok(());
         }
 
+        let Some(compile_options) = self.get_compile_options() else {
+            log::debug!("No compile options provided");
+            return Ok(());
+        };        
+
         // 4. Validate
-        annotated_project.validate(&self.context, &mut self.diagnostician)?;
+        annotated_project.validate(&self.context, &mut self.diagnostician, &compile_options.generation)?;
 
         //TODO: probably not needed, should be a participant anyway
         if let Some((location, format)) = self
@@ -341,7 +346,7 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
             return Ok(());
         }
 
-        self.generate(&CodegenContext::create(), annotated_project)
+        self.generate(&CodegenContext::create(), annotated_project, &compile_options)
     }
 
     fn parse(&mut self) -> Result<ParsedProject, Diagnostic> {
@@ -381,12 +386,9 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
         Ok(annotated_project)
     }
 
-    fn generate(&mut self, _context: &CodegenContext, project: AnnotatedProject) -> Result<(), Diagnostic> {
+    fn generate(&mut self, _context: &CodegenContext, project: AnnotatedProject, compile_options: &CompileOptions) -> Result<(), Diagnostic> {
         self.participants.iter_mut().try_fold((), |_, participant| participant.pre_generate(&project))?;
-        let Some(compile_options) = self.get_compile_options() else {
-            log::debug!("No compile options provided");
-            return Ok(());
-        };
+
         let got_layout = if let OnlineChange::Enabled { file_name, format } = &compile_options.online_change {
             read_got_layout(file_name, *format)?
         } else {
@@ -664,6 +666,7 @@ impl AnnotatedProject {
         &self,
         ctxt: &GlobalContext,
         diagnostician: &mut Diagnostician,
+        cli_params: &GenerationParameters
     ) -> Result<(), Diagnostic> {
         // perform global validation
         let mut validator = Validator::new(ctxt);
@@ -674,7 +677,7 @@ impl AnnotatedProject {
         //Perform per unit validation
         self.units.iter().for_each(|AnnotatedUnit { unit, .. }| {
             // validate unit
-            validator.visit_unit(&self.annotations, &self.index, unit);
+            validator.visit_unit(&self.annotations, &self.index, unit, cli_params);
             // log errors
             let diagnostics = validator.diagnostics();
             severity = severity.max(diagnostician.handle(&diagnostics));

@@ -3,6 +3,7 @@ use plc_derive::Validators;
 use plc_diagnostics::diagnostics::Diagnostic;
 use plc_index::GlobalContext;
 use plc_source::source_location::SourceLocation;
+use plc_xmlgen::xml_gen::GenerationParameters;
 use property::visit_property;
 use rustc_hash::FxHashMap;
 use variable::visit_config_variable;
@@ -163,14 +164,14 @@ impl<'a> Validator<'a> {
         }
     }
 
-    pub fn visit_unit<T: AnnotationMap>(&mut self, annotations: &T, index: &Index, unit: &CompilationUnit) {
+    pub fn visit_unit<T: AnnotationMap>(&mut self, annotations: &T, index: &Index, unit: &CompilationUnit, cli_params: &GenerationParameters) {
         let context =
             ValidationContext { annotations, index, qualifier: None, is_call: false, is_cast: false };
         // Validate POU and declared Variables
         for pou in &unit.pous {
             let context = context.with_qualifier(pou.name.as_str());
 
-            visit_pou(self, pou, &context);
+            visit_pou(self, pou, &context, cli_params);
             visit_property(self, &context);
         }
 
@@ -186,7 +187,7 @@ impl<'a> Validator<'a> {
 
         // Validate global variables
         for gv in &unit.global_vars {
-            visit_variable_block(self, None, gv, &context);
+            visit_variable_block(self, None, gv, &context, cli_params);
         }
 
         // Validate implementations
