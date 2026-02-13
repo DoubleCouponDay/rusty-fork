@@ -105,7 +105,7 @@ fn generate_globals(generation_parameters: &GenerationParameters, current_unit: 
             }
 
             let network_publish = match current_global.kind {
-                VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
+                VariableBlockType::Global => String::from("DoNotPublish"),
                 _ => {
                     continue; //skip non global variables
                 }
@@ -452,7 +452,6 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
                 }
 
                 let network_publish = match current_block.kind {
-                    VariableBlockType::Global(network_publish_mode) => network_publish_mode.to_string(),
                     _ => String::from("DoNotPublish")
                 };
 

@@ -12,6 +12,7 @@ pub mod tests {
     };
     use plc_index::GlobalContext;
     use plc_source::{source_location::SourceLocationFactory, Compilable, SourceCode, SourceContainer};
+    use plc_xmlgen::xml_gen::GenerationParameters;
 
     use crate::{
         builtins,
@@ -204,7 +205,8 @@ pub mod tests {
 
         let mut validator = Validator::new(&ctxt);
         validator.perform_global_validation(&index);
-        validator.visit_unit(&annotations, &index, &unit);
+        let gen_params = GenerationParameters::new();
+        validator.visit_unit(&annotations, &index, &unit, &gen_params);
         diagnostics.extend(validator.diagnostics());
         diagnostics
     }

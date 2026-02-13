@@ -147,7 +147,7 @@ fn validate_variable_block(validator: &mut Validator, block: &VariableBlock, cli
     if block.constant
         && !matches!(
             block.kind,
-            VariableBlockType::Global(_) | VariableBlockType::Local | VariableBlockType::External
+            VariableBlockType::Global | VariableBlockType::Local | VariableBlockType::External
         )
     {
         validator.push_diagnostic(
@@ -173,7 +173,7 @@ pub fn visit_variable<T: AnnotationMap>(
 /// - InOut within Function-Block
 fn validate_vla(validator: &mut Validator, pou: Option<&Pou>, block: &VariableBlock, variable: &Variable) {
     let Some(pou) = pou else {
-        if matches!(block.kind, VariableBlockType::Global(_)) {
+        if matches!(block.kind, VariableBlockType::Global) {
             validator.push_diagnostic(
                 Diagnostic::new("VLAs can not be defined as global variables")
                     .with_error_code("E044")

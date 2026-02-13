@@ -476,7 +476,7 @@ pub enum VariableBlockType {
     Temp,
     Input(ArgumentProperty),
     Output,
-    Global(NetworkPublishMode),
+    Global,
     InOut,
     External
 }
@@ -496,7 +496,7 @@ impl Display for VariableBlockType {
             VariableBlockType::Temp => write!(f, "temp"),
             VariableBlockType::Input(_) => write!(f, "input"),
             VariableBlockType::Output => write!(f, "output"),
-            VariableBlockType::Global(network) => write!(f, "{}({})", "global", network.to_string()),
+            VariableBlockType::Global => write!(f, "{}", "global"),
             VariableBlockType::InOut => write!(f, "inout"),
             VariableBlockType::External => write!(f, "external")
         }
@@ -533,7 +533,7 @@ pub struct VariableBlock {
 
 impl VariableBlock {
     pub fn global() -> Self {
-        VariableBlock::default().with_block_type(VariableBlockType::Global(NetworkPublishMode::DoNotPublish))
+        VariableBlock::default().with_block_type(VariableBlockType::Global)
     }
 
     pub fn with_block_type(mut self, block_type: VariableBlockType) -> Self {
@@ -1658,10 +1658,10 @@ mod tests {
         assert_eq!(VariableBlockType::Input(ArgumentProperty::ByVal).to_string(), "Input");
         assert_eq!(VariableBlockType::Input(ArgumentProperty::ByRef).to_string(), "Input");
         assert_eq!(VariableBlockType::Output.to_string(), "Output");
-        assert_eq!(VariableBlockType::Global(NetworkPublishMode::DoNotPublish).to_string(), "global(DoNotPublish)");
-        assert_eq!(VariableBlockType::Global(NetworkPublishMode::PublishOnly).to_string(), "global(PublishOnly)");
-        assert_eq!(VariableBlockType::Global(NetworkPublishMode::Input).to_string(), "global(Input)");
-        assert_eq!(VariableBlockType::Global(NetworkPublishMode::Output).to_string(), "global(Output)");
+        assert_eq!(VariableBlockType::Global.to_string(), "global");
+        assert_eq!(VariableBlockType::Global.to_string(), "global");
+        assert_eq!(VariableBlockType::Global.to_string(), "global");
+        assert_eq!(VariableBlockType::Global.to_string(), "global");
         assert_eq!(VariableBlockType::InOut.to_string(), "InOut");
     }
 }

@@ -290,7 +290,7 @@ fn get_variable_type_from_block(block: &VariableBlock) -> VariableType {
         VariableBlockType::Temp => VariableType::Temp,
         VariableBlockType::Input(_) => VariableType::Input,
         VariableBlockType::Output => VariableType::Output,
-        VariableBlockType::Global(_) => VariableType::Global,
+        VariableBlockType::Global => VariableType::Global,
         VariableBlockType::InOut => VariableType::InOut,
         VariableBlockType::External => VariableType::External
     }
