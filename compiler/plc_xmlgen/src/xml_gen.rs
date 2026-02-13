@@ -115,10 +115,10 @@ fn generate_globals(generation_parameters: &GenerationParameters, current_unit: 
 
             let maybe_newvar = generate_variable_element(current_variable, generation_parameters, &cloned_unitname, schema_path, network_publish, preused_order, b, false);
 
-            if maybe_newvar.is_none() {
-                continue; //no variable element created so skip it
-            }
-            let new_var = maybe_newvar.unwrap();
+            let new_var = match maybe_newvar {
+                Some(a) => a,
+                None => { continue; }, //no variable element created so skip it
+            };
             parsed_variables.push(Box::new(new_var));
         }
 
@@ -177,10 +177,10 @@ fn generate_custom_types(generation_parameters: &GenerationParameters, current_u
 
         let customtype_maybe: Option<SDataTypeDecl> = match &current_usertype.data_type {
             DataType::StructType { name, variables } => { //STRUCT
-                if name.is_none() { //every structure must have a name
-                    continue;
-                }
-                let unwrapped_name = name.clone().unwrap();
+                let unwrapped_name = match name {
+                    Some(a) => a.clone(),
+                    None => { continue; }, //every structure must have a name
+                };
 
                 let mut spec_node = SUserDefinedTypeSpec::new()
                     .attribute_str("xsi:type", "StructTypeSpec");
@@ -189,10 +189,10 @@ fn generate_custom_types(generation_parameters: &GenerationParameters, current_u
                     let current_variable = &variables[b];
                     let maybe_typename = current_variable.data_type_declaration.get_name();
 
-                    if maybe_typename.is_none() { //every variable must have a type
-                        continue;
-                    }
-                    let mut typename = maybe_typename.unwrap();
+                    let mut typename = match maybe_typename {
+                        Some(a) => a,
+                        None => { continue; }, //every variable must have a type
+                    };
 
                     if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
                         typename = "String[1986]";
@@ -224,10 +224,10 @@ fn generate_custom_types(generation_parameters: &GenerationParameters, current_u
                 }
             },
             DataType::EnumType { name, numeric_type, elements } => { //ENUM
-                if name.is_none() { //every structure must have a name
-                    continue;
-                }
-                let unwrapped_enum_type = name.clone().unwrap();
+                let unwrapped_enum_type = match name {
+                    Some(a) => a.clone(),
+                    None => { continue; }, //every structure must have a name
+                };
 
                 let enumerators = match &elements.stmt {
                     AstStatement::ExpressionList(ast_nodes) => ast_nodes.iter().map(|a| {
@@ -458,10 +458,10 @@ fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &Co
 
                 let maybe_variablenode = generate_variable_element(current_variable, generation_parameters, &matching_metadata.name, schema_path, network_publish, param_order, c, use_order_attr);
 
-                if maybe_variablenode.is_none() {
-                    continue;
-                }
-                let variable_node = maybe_variablenode.unwrap();
+                let variable_node = match maybe_variablenode {
+                    Some(a) => a,
+                    None => { continue; },
+                };
 
                 match current_block.kind {
                     VariableBlockType::Local => {
@@ -602,10 +602,10 @@ fn generate_variable_element(current_variable: &Variable, generation_parameters:
     //<Type>
     let maybe_typename = current_variable.data_type_declaration.get_name();
 
-    if maybe_typename.is_none() {
-        return None; //every variable must have a typename
-    }
-    let mut typename = maybe_typename.unwrap();
+    let mut typename = match maybe_typename {
+        Some(a) => a,
+        None => { return None; }, //every variable must have a typename
+    };
 
     if typename.to_lowercase().contains("string") && generation_parameters.output_xml_omron { //string[256] produces a type of __global_testString. This is not a valid type for Omron Sysmac Studio
         typename = "String[1986]";
@@ -671,10 +671,10 @@ fn grab_file_statement_from_span(file_path: &'static str, range: &Range<TextLoca
     file.seek(SeekFrom::Start(unsigned_start)).expect("seeks to starting offset");
     let maybe_size = range.end.offset.checked_sub(range.start.offset);
 
-    if maybe_size.is_none() {
-        return None; //don't parse statement if it has a negative size
-    }
-    let size = maybe_size.unwrap();
+    let size = match maybe_size {
+        Some(a) => a,
+        None => { return None; }, //don't parse statement if it has a negative size
+    };
     let mut buffer = vec![0u8; size];
     file.read_exact(&mut buffer.as_mut_slice()).expect("reads successfully");
     let formatted = String::from_utf8(buffer).expect("valid utf8 string");
