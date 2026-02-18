@@ -1,8 +1,6 @@
 use plc_ast::{
     ast::{
-        flatten_expression_list, get_enum_element_name, Assignment, AstFactory, AstNode, AstStatement,
-        AutoDerefType, DataType, DataTypeDeclaration, RangeStatement, TypeNature, UserTypeDeclaration,
-        Variable,
+        Assignment, AstFactory, AstNode, AstStatement, AutoDerefType, DataType, DataTypeDeclaration, LinkageType, RangeStatement, TypeNature, UserTypeDeclaration, Variable, flatten_expression_list, get_enum_element_name
     },
     literals::AstLiteral,
     visitor::{AstVisitor, Walker},
@@ -159,6 +157,7 @@ impl UserTypeIndexer<'_, '_> {
                         }),
                         location: SourceLocation::internal(),
                         scope: None,
+                        linkage: LinkageType::Internal
                     },
                     DataTypeDeclaration::Definition {
                         data_type: Box::new(DataType::ArrayType {
@@ -194,6 +193,7 @@ impl UserTypeIndexer<'_, '_> {
                         }),
                         location: SourceLocation::internal(),
                         scope: None,
+                        linkage: LinkageType::Internal
                     },
                 )
             };

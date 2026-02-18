@@ -616,7 +616,7 @@ impl Variable {
 #[derive(Clone, PartialEq)]
 pub enum DataTypeDeclaration {
     Reference { referenced_type: String, location: SourceLocation },
-    Definition { data_type: Box<DataType>, location: SourceLocation, scope: Option<String> },
+    Definition { data_type: Box<DataType>, location: SourceLocation, scope: Option<String>, linkage: LinkageType },
     Aggregate { referenced_type: String, location: SourceLocation },
 }
 
@@ -698,6 +698,7 @@ pub struct UserTypeDeclaration {
     pub location: SourceLocation,
     /// stores the original scope for compiler-generated types
     pub scope: Option<String>,
+    pub linkage: LinkageType
 }
 
 impl Debug for UserTypeDeclaration {

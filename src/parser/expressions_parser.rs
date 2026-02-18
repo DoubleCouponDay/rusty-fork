@@ -4,7 +4,7 @@ use crate::{
     expect_token,
     lexer::Token::*,
     lexer::{ParseSession, Token},
-    parser::parse_any_in_region,
+    parser::parse_expression_in_region,
 };
 use core::str::Split;
 use plc_ast::{
@@ -265,7 +265,7 @@ fn parse_atomic_leaf_expression(lexer: &mut ParseSession<'_>) -> Option<AstNode>
             }
         }
         KeywordParensOpen => {
-            parse_any_in_region(lexer, vec![KeywordParensClose], |lexer| {
+            parse_expression_in_region(lexer, vec![KeywordParensClose], |lexer| {
                 lexer.advance(); // eat KeywordParensOpen
 
                 let start = lexer.last_location();
@@ -386,7 +386,7 @@ pub fn parse_call_statement(lexer: &mut ParseSession) -> Option<AstNode> {
             reference_loc.span(&lexer.location()),
         )
     } else {
-        parse_any_in_region(lexer, vec![KeywordParensClose], |lexer| {
+        parse_expression_in_region(lexer, vec![KeywordParensClose], |lexer| {
             AstFactory::create_call_statement(
                 reference,
                 Some(parse_expression_list(lexer)),
@@ -398,7 +398,7 @@ pub fn parse_call_statement(lexer: &mut ParseSession) -> Option<AstNode> {
 
     // Are we dealing with an array-index access directly after the call, e.g. `foo()[...]`?
     if lexer.try_consume(KeywordSquareParensOpen) {
-        let index = parse_any_in_region(lexer, vec![KeywordSquareParensClose], parse_expression);
+        let index = parse_expression_in_region(lexer, vec![KeywordSquareParensClose], parse_expression);
         let statement = AstFactory::create_index_reference(
             index,
             Some(call),
@@ -484,7 +484,7 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Option<AstNode> {
             (Some(base), Some(KeywordSquareParensOpen)) => {
                 lexer.advance();
                 let index_reference =
-                    parse_any_in_region(lexer, vec![KeywordSquareParensClose], parse_expression);
+                    parse_expression_in_region(lexer, vec![KeywordSquareParensClose], parse_expression);
                 let new_location = base.get_location().span(&lexer.last_location());
                 current = Some({
                     AstFactory::create_index_reference(
