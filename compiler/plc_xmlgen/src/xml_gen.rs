@@ -97,6 +97,10 @@ fn generate_globals(generation_parameters: &GenerationParameters, current_unit: 
         let current_global = &current_unit.global_vars[a];
         let mut parsed_variables: Vec<Box<dyn IntoNode>> = Vec::with_capacity(current_global.variables.len());
 
+        if current_global.linkage == LinkageType::External { //Don't include globals that are external
+            continue;
+        }
+
         for b in 0..current_global.variables.len() {
             let current_variable = &current_global.variables[b];
 
@@ -181,13 +185,14 @@ fn generate_custom_types(generation_parameters: &GenerationParameters, current_u
                     Some(a) => a.clone(),
                     None => { continue; }, //every structure must have a name
                 };
+                println!("structname: {}, scope: {:?}", &unwrapped_name, current_usertype.scope.clone());
 
                 let mut spec_node = SUserDefinedTypeSpec::new()
                     .attribute_str("xsi:type", "StructTypeSpec");
 
                 for b in 0..variables.len() {
                     let current_variable = &variables[b];
-                    let maybe_typename = current_variable.data_type_declaration.get_name();
+                    let maybe_typename = current_variable.data_type_declaration.get_name();                    
 
                     let mut typename = match maybe_typename {
                         Some(a) => a,
