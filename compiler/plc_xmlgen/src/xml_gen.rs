@@ -304,12 +304,12 @@ fn parse_enum_expression(input: &Assignment) -> NameAndInitialValue {
     NameAndInitialValue {name: enum_variant_name, initial_value: enum_variant_initialiser}
 }
 
-struct NameAndInitialValue {
+pub struct NameAndInitialValue {
     pub name: String,
     pub initial_value: String
 }
 
-fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
+pub fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<Box<dyn IntoNode>> {
     let mut viewed_values: HashSet<String> = HashSet::new(); // Own strings for ownership
     
     for i in 0..enum_variants.len() {

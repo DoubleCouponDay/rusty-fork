@@ -1,7 +1,10 @@
-use std::path::PathBuf;
 
 #[cfg(test)]
 mod xml_gen_tests {
+    use std::path::PathBuf;
+
+    use plc_ast::ast::CompilationUnit;
+
     use crate::xml_gen::*;
     use crate::serializer::*;
 

@@ -207,9 +207,12 @@ newtype_impl!(SJump, "jump", false);
 newtype_impl!(SLabel, "label", false);
 newtype_impl!(SAction, "action", false);
 newtype_impl!(SActions, "actions", false);
-newtype_impl!(SFileHeader, "FileHeader", false);
-newtype_impl!(SContentHeader, "ContentHeader", false);
+newtype_impl!(SFileHeader, FILE_HEADER, false);
+newtype_impl!(SContentHeader, CONTENT_HEADER, false);
 newtype_impl!(STypes, TYPES, false);
+
+pub const FILE_HEADER: &'static str = "FileHeader";
+pub const CONTENT_HEADER: &'static str = "ContentHeader";
 
 pub trait SizedVariable: IntoNode + Sized {
 
