@@ -179,6 +179,10 @@ fn generate_custom_types(generation_parameters: &GenerationParameters, current_u
             continue; //discard internally generated types
         }
 
+        if current_usertype.linkage == LinkageType::External {
+            continue; //discard externally defined types; same as externally defined functions
+        }
+
         let customtype_maybe: Option<SDataTypeDecl> = match &current_usertype.data_type {
             DataType::StructType { name, variables } => { //STRUCT
                 let unwrapped_name = match name {
