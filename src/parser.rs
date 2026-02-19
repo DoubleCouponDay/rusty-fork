@@ -125,7 +125,7 @@ pub fn parse(mut lexer: ParseSession, lnk: LinkageType, file_name: &'static str)
                 unit.implementations.append(&mut actions);
             }
             KeywordType => {
-                let unit_type = parse_type(&mut lexer, &lnk);
+                let unit_type = parse_type(&mut lexer, &linkage);
                 for utype in unit_type {
                     unit.user_types.push(utype);
                 }

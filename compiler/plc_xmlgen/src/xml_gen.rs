@@ -113,7 +113,7 @@ fn generate_globals(generation_parameters: &GenerationParameters, current_unit: 
                 _ => {
                     continue; //skip non global variables
                 }
-            };
+            };            
 
             let cloned_unitname = String::from(unit_name);
 
