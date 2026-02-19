@@ -189,7 +189,6 @@ fn generate_custom_types(generation_parameters: &GenerationParameters, current_u
                     Some(a) => a.clone(),
                     None => { continue; }, //every structure must have a name
                 };
-                println!("structname: {}, scope: {:?}", &unwrapped_name, current_usertype.scope.clone());
 
                 let mut spec_node = SUserDefinedTypeSpec::new()
                     .attribute_str("xsi:type", "StructTypeSpec");
