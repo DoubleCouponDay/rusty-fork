@@ -58,16 +58,11 @@ pub fn pre_process(unit: &mut CompilationUnit, mut id_provider: IdProvider) {
                         location: SourceLocation::internal(), //return_type.get_location(),
                     };
                     let datatype = std::mem::replace(referenced_type, Box::new(type_ref));
-                    if let DataTypeDeclaration::Definition { mut data_type, location, scope } = *datatype {
+                    if let DataTypeDeclaration::Definition { mut data_type, location, scope, linkage } = *datatype {
                         data_type.set_name(type_name);
                         add_nested_datatypes(name, &mut data_type, &mut new_types, &location);
-                        let data_type = UserTypeDeclaration {
-                            data_type: *data_type,
-                            initializer: None,
-                            location,
-                            scope,
-                            linkage: crate::ast::LinkageType::Internal,
-                        };
+                        let data_type =
+                            UserTypeDeclaration { data_type: *data_type, initializer: None, location, scope, linkage };
                         new_types.push(data_type);
                     }
                 }
@@ -294,7 +289,7 @@ fn preprocess_generic_structs(pou: &mut Pou) -> Vec<UserTypeDeclaration> {
             initializer: None,
             scope: Some(pou.name.clone()),
             location: pou.location.clone(),
-            linkage: crate::ast::LinkageType::Internal,
+            linkage: pou.linkage.clone()
         };
         types.push(data_type);
         generic_types.insert(binding.name.clone(), new_name);
@@ -317,16 +312,11 @@ fn preprocess_return_type(pou: &mut Pou, types: &mut Vec<UserTypeDeclaration>) {
                 location: return_type.get_location(),
             };
             let datatype = pou.return_type.replace(type_ref);
-            if let Some(DataTypeDeclaration::Definition { mut data_type, location, scope }) = datatype {
+            if let Some(DataTypeDeclaration::Definition { mut data_type, location, scope, linkage }) = datatype {
                 data_type.set_name(type_name);
                 add_nested_datatypes(pou.name.as_str(), &mut data_type, types, &location);
-                let data_type = UserTypeDeclaration {
-                    data_type: *data_type,
-                    initializer: None,
-                    location,
-                    scope,
-                    linkage: crate::ast::LinkageType::Internal,
-                };
+                let data_type =
+                    UserTypeDeclaration { data_type: *data_type, initializer: None, location, scope, linkage };
                 types.push(data_type);
             }
         }
@@ -355,19 +345,13 @@ fn pre_process_variable_data_type(
     types: &mut Vec<UserTypeDeclaration>,
 ) {
     let new_type_name = internal_type_name(&format!("{container_name}_"), &variable.name);
-    if let DataTypeDeclaration::Definition { mut data_type, location, scope } =
+    if let DataTypeDeclaration::Definition { mut data_type, location, scope, linkage } =
         variable.replace_data_type_with_reference_to(new_type_name.clone())
     {
         // create index entry
         add_nested_datatypes(new_type_name.as_str(), &mut data_type, types, &location);
         data_type.set_name(new_type_name);
-        types.push(UserTypeDeclaration {
-            data_type: *data_type,
-            initializer: None,
-            location,
-            scope,
-            linkage: crate::ast::LinkageType::Internal,
-        });
+        types.push(UserTypeDeclaration { data_type: *data_type, initializer: None, location, scope, linkage });
     }
     //make sure it gets generated
 }
@@ -386,7 +370,7 @@ fn add_nested_datatypes(
     // (with trailing underscore but no suffix) when the inner pointer type should be processed.
     // We need to distinguish between pointer references (which should be processed) and other references
     // (which should return None) to properly handle nested pointer structures.
-    if let Some(DataTypeDeclaration::Definition { mut data_type, location: inner_location, scope }) =
+    if let Some(DataTypeDeclaration::Definition { mut data_type, location: inner_location, scope, linkage }) =
         datatype.replace_data_type_with_reference_to(new_type_name.clone(), location)
     {
         data_type.set_name(new_type_name.clone());
@@ -395,8 +379,8 @@ fn add_nested_datatypes(
             data_type: *data_type,
             initializer: None,
             location: location.clone(),
-            scope,
-            linkage: crate::ast::LinkageType::Internal,
+            scope: scope,
+            linkage: linkage
         });
     }
 }

@@ -627,7 +627,7 @@ impl Variable {
 #[serde(bound(deserialize = "'de: 'static"))]
 pub enum DataTypeDeclaration {
     Reference { referenced_type: String, location: SourceLocation },
-    Definition { data_type: Box<DataType>, location: SourceLocation, scope: Option<String> },
+    Definition { data_type: Box<DataType>, location: SourceLocation, scope: Option<String>, linkage: LinkageType },
     Aggregate { referenced_type: String, location: SourceLocation },
 }
 
@@ -710,7 +710,7 @@ pub struct UserTypeDeclaration {
     pub location: SourceLocation,
     /// stores the original scope for compiler-generated types
     pub scope: Option<String>,
-    pub linkage: LinkageType,
+    pub linkage: LinkageType
 }
 
 impl Debug for UserTypeDeclaration {
@@ -1649,7 +1649,7 @@ impl Operator {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{ArgumentProperty, DeclarationKind, NetworkPublishMode, PouType, VariableBlockType};
+    use crate::ast::{ArgumentProperty, DeclarationKind, PouType, VariableBlockType};
 
     #[test]
     fn display_pou() {
