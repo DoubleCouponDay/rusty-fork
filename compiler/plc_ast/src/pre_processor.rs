@@ -379,8 +379,8 @@ fn add_nested_datatypes(
             data_type: *data_type,
             initializer: None,
             location: location.clone(),
-            scope,
-            linkage
+            scope: scope,
+            linkage: linkage
         });
     }
 }

@@ -203,7 +203,7 @@ impl VirtualTableGenerator {
             initializer: None,
             location: location.clone(),
             scope: None,
-            linkage: LinkageType::Internal            
+            linkage: LinkageType::Internal
         }
     }
 
