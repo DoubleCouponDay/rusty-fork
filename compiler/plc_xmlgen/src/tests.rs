@@ -8,6 +8,59 @@ mod xml_gen_tests {
     use crate::xml_gen::*;
     use crate::serializer::*;
 
+    use plc_ast::{
+        literals::AstLiteral,
+        ast::{
+        AstFactory, AstNode, DataType,
+        DataTypeDeclaration, Implementation, LinkageType, Pou, PouType,
+        UserTypeDeclaration, Variable, VariableBlock, VariableBlockType,
+    }};
+    use plc_source::source_location::{CodeSpan, FileMarker, SourceLocation, TextLocation};
+    use std::collections::HashSet;
+
+    /// Helper: Create a SourceLocation with a non-None CodeSpan::Range so variables are not skipped.
+    fn make_source_location() -> SourceLocation {
+        SourceLocation {
+            span: CodeSpan::Range(TextLocation::new(0, 0, 0)..TextLocation::new(0, 10, 10)),
+            file: FileMarker::Internal("<test>"),
+        }
+    }
+
+    /// Helper: Create a simple Variable with a given name and type.
+    fn make_variable(name: &str, type_name: &str) -> Variable {
+        Variable {
+            name: String::from(name),
+            data_type_declaration: DataTypeDeclaration::Reference {
+                referenced_type: String::from(type_name),
+                location: SourceLocation::internal(),
+            },
+            initializer: None,
+            address: None,
+            location: make_source_location(),
+        }
+    }
+
+    /// Helper: Create a CompilationUnit from the given file name.
+    fn make_unit(file_name: &'static str) -> CompilationUnit {
+        CompilationUnit::new(file_name)
+    }
+
+    /// Helper: Create an enum Assignment AST node: `VariantName := IntegerValue`
+    fn make_enum_assignment(variant_name: &str, value: i128) -> AstNode {
+        let loc = SourceLocation::internal();
+        let left = AstFactory::create_member_reference(
+            AstFactory::create_identifier(variant_name, loc.clone(), 0),
+            None,
+            0,
+        );
+        let right = AstFactory::create_literal(
+            AstLiteral::Integer(value),
+            loc.clone(),
+            0,
+        );
+        AstFactory::create_assignment(left, right, 0)
+    }
+
     #[test]
     fn test_generation_parameters_default() {
         let params = GenerationParameters::new();
@@ -119,6 +172,248 @@ mod xml_gen_tests {
             OMRON_SCHEMA,
             "https://www.ia.omron.com/Smc IEC61131_10_Ed1_0_SmcExt1_0_Spc1_0.xsd"
         );
+    }
+
+    #[test]
+    fn test_parse_project_into_nodetree() {
+        let temp_dir = std::env::temp_dir();
+        let output_path = temp_dir.join("test_parse_nodetree.xml");
+        let template = get_omron_template();
+        let params = GenerationParameters::new();
+
+        // Create a unit with a global variable
+        let mut unit = make_unit("myfile.st");
+        unit.global_vars.push(
+            VariableBlock::global()
+                .with_variables(vec![make_variable("gCounter", "INT")]),
+        );
+
+        // Create a struct user type
+        unit.user_types.push(UserTypeDeclaration {
+            data_type: DataType::StructType {
+                name: Some(String::from("MyStruct")),
+                variables: vec![make_variable("field1", "DINT")],
+            },
+            initializer: None,
+            location: make_source_location(),
+            scope: None,
+            linkage: LinkageType::Internal,
+        });
+
+        let units: Vec<&CompilationUnit> = vec![&unit];
+        let result = parse_project_into_nodetree(&params, &units, OMRON_SCHEMA, &output_path, template);
+        assert!(result.is_ok());
+        assert!(output_path.exists());
+
+        let contents = std::fs::read_to_string(&output_path).unwrap();
+        // Globals should produce a Configuration/Resource with the variable
+        assert!(contents.contains(CONFIGURATION));
+        assert!(contents.contains(RESOURCE));
+        assert!(contents.contains("gCounter"));
+        // Custom types should produce DataTypeDecl
+        assert!(contents.contains("MyStruct"));
+        assert!(contents.contains("field1"));
+
+        let _ = std::fs::remove_file(&output_path);
+    }
+
+    #[test]
+    fn test_generate_globals() {
+        let params = GenerationParameters::new();
+        let mut template = get_omron_template();
+        let mut order: HashSet<(String, usize)> = HashSet::new();
+
+        // Unit with one normal global, one constant global, one retain global
+        let mut unit = make_unit("globals.st");
+
+        // Normal global block
+        unit.global_vars.push(
+            VariableBlock::global()
+                .with_variables(vec![make_variable("normalVar", "INT")]),
+        );
+
+        // Constant global block
+        let mut const_block = VariableBlock::global()
+            .with_variables(vec![make_variable("constVar", "REAL")]);
+        const_block.constant = true;
+        unit.global_vars.push(const_block);
+
+        // Retain global block
+        let mut retain_block = VariableBlock::global()
+            .with_variables(vec![make_variable("retainVar", "BOOL")]);
+        retain_block.retain = true;
+        unit.global_vars.push(retain_block);
+
+        let result = generate_globals(&params, &unit, "globals.st", OMRON_SCHEMA, &mut order, &mut template);
+        assert!(result.is_ok());
+
+        // Write the tree to verify the structure
+        let temp_dir = std::env::temp_dir();
+        let output_path = temp_dir.join("test_generate_globals_output.xml");
+        write_xml_file(&output_path, template).unwrap();
+
+        let contents = std::fs::read_to_string(&output_path).unwrap();
+        assert!(contents.contains(CONFIGURATION));
+        assert!(contents.contains(RESOURCE));
+        assert!(contents.contains("GlobalVars"));
+        assert!(contents.contains("normalVar"));
+        assert!(contents.contains("constVar"));
+        assert!(contents.contains("retainVar"));
+        // Check Configuration name follows the pattern "unitname_Configuration"
+        assert!(contents.contains("globals.st_Configuration"));
+        assert!(contents.contains("globals.st_Resource"));
+
+        let _ = std::fs::remove_file(&output_path);
+    }
+
+    #[test]
+    fn test_generate_custom_types() {
+        let params = GenerationParameters::new();
+        let mut template = get_omron_template();
+
+        let mut unit = make_unit("types.st");
+
+        // Add a StructType
+        unit.user_types.push(UserTypeDeclaration {
+            data_type: DataType::StructType {
+                name: Some(String::from("Motor")),
+                variables: vec![
+                    make_variable("speed", "INT"),
+                    make_variable("running", "BOOL"),
+                ],
+            },
+            initializer: None,
+            location: make_source_location(),
+            scope: None,
+            linkage: LinkageType::Internal,
+        });
+
+        // Add an EnumType with an ExpressionList of Assignments
+        let enum_elements = AstFactory::create_expression_list(
+            vec![
+                make_enum_assignment("RED", 0),
+                make_enum_assignment("GREEN", 1),
+                make_enum_assignment("BLUE", 2),
+            ],
+            SourceLocation::internal(),
+            0,
+        );
+
+        unit.user_types.push(UserTypeDeclaration {
+            data_type: DataType::EnumType {
+                name: Some(String::from("Color")),
+                numeric_type: String::from("INT"),
+                elements: enum_elements,
+            },
+            initializer: None,
+            location: make_source_location(),
+            scope: None,
+            linkage: LinkageType::Internal,
+        });
+
+        let result = generate_custom_types(&params, &unit, &mut template);
+        assert!(result.is_ok());
+
+        // Write and verify
+        let temp_dir = std::env::temp_dir();
+        let output_path = temp_dir.join("test_generate_custom_types_output.xml");
+        write_xml_file(&output_path, template).unwrap();
+
+        let contents = std::fs::read_to_string(&output_path).unwrap();
+        // Struct
+        assert!(contents.contains("Motor"));
+        assert!(contents.contains("speed"));
+        assert!(contents.contains("running"));
+        assert!(contents.contains("StructTypeSpec"));
+
+        // Enum
+        assert!(contents.contains("Color"));
+        assert!(contents.contains("RED"));
+        assert!(contents.contains("GREEN"));
+        assert!(contents.contains("BLUE"));
+        assert!(contents.contains("EnumTypeWithNamedValueSpec"));
+        assert!(contents.contains("BaseType"));
+
+        let _ = std::fs::remove_file(&output_path);
+    }
+
+    #[test]
+    fn test_generate_pous() {
+        let params = GenerationParameters::new();
+        let mut template = get_omron_template();
+        let mut order: HashSet<(String, usize)> = HashSet::new();
+
+        // Create a temp .st file for grab_file_statement_from_span to read
+        let temp_dir = std::env::temp_dir();
+        let st_path = temp_dir.join("test_pou_source.st");
+        let program_body = "x := 1 + 2;";
+        std::fs::write(&st_path, program_body).unwrap();
+
+        // We need a &'static str for FileMarker::File, so we leak the path string.
+        // This is acceptable in tests.
+        let st_path_str: &'static str = Box::leak(st_path.to_string_lossy().into_owned().into_boxed_str());
+
+        let body_len = program_body.len();
+        let impl_location = SourceLocation {
+            span: CodeSpan::Range(TextLocation::new(0, 0, 0)..TextLocation::new(0, body_len, body_len)),
+            file: FileMarker::File(st_path_str),
+        };
+
+        let mut unit = make_unit("test_pou_source.st");
+
+        // Add a Program POU metadata
+        unit.pous.push(Pou {
+            id: 1,
+            name: String::from("MainProg"),
+            kind: PouType::Program,
+            variable_blocks: vec![
+                VariableBlock::default()
+                    .with_block_type(VariableBlockType::Local)
+                    .with_variables(vec![make_variable("localX", "INT")]),
+            ],
+            return_type: None,
+            location: SourceLocation::internal(),
+            name_location: SourceLocation::internal(),
+            poly_mode: None,
+            generics: vec![],
+            linkage: LinkageType::Internal,
+            super_class: None,
+            is_const: false,
+            interfaces: vec![],
+            properties: vec![],
+        });
+
+        // Matching implementation
+        unit.implementations.push(Implementation {
+            name: String::from("MainProg"),
+            type_name: String::from("MainProg"),
+            linkage: LinkageType::Internal,
+            pou_type: PouType::Program,
+            statements: vec![],
+            location: impl_location,
+            name_location: SourceLocation::internal(),
+            end_location: SourceLocation::internal(),
+            overriding: false,
+            generic: false,
+            access: None,
+        });
+
+        let result = generate_pous(&params, &unit, OMRON_SCHEMA, &mut order, &mut template);
+        assert!(result.is_ok());
+
+        // Write and verify
+        let output_path = temp_dir.join("test_generate_pous_output.xml");
+        write_xml_file(&output_path, template).unwrap();
+
+        let contents = std::fs::read_to_string(&output_path).unwrap();
+        assert!(contents.contains("Program"));
+        assert!(contents.contains("MainProg"));
+        assert!(contents.contains("localX"));
+        assert!(contents.contains("x := 1 + 2;"));
+        assert!(contents.contains("MainBody"));
+
+        let _ = std::fs::remove_file(&output_path);
+        let _ = std::fs::remove_file(&st_path);
     }
 
     #[test]

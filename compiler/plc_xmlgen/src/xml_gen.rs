@@ -75,7 +75,7 @@ pub fn parse_project_into_nodetree(generation_parameters: &GenerationParameters,
     Ok(())
 }
 
-fn generate_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, preused_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
+pub fn generate_globals(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, unit_name: &str, schema_path: &'static str, preused_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_globals_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == INSTANCES);
     let globals_root = maybe_globals_root.ok_or(())?;
 
@@ -166,7 +166,7 @@ fn generate_globals(generation_parameters: &GenerationParameters, current_unit: 
     return Ok(());
 }
 
-fn generate_custom_types(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
+pub fn generate_custom_types(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;    
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
@@ -343,7 +343,7 @@ pub fn format_enum_initials(mut enum_variants: Vec<NameAndInitialValue>) -> Vec<
     }).collect()
 }
 
-fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
+pub fn generate_pous(generation_parameters: &GenerationParameters, current_unit: &CompilationUnit, schema_path: &'static str, param_order: &mut HashSet<(String, usize)>, output_root: &mut Node) -> Result<(), ()> {
     let maybe_types_root: Option<&mut Node> = output_root.children.iter_mut().find(|a| a.name == TYPES);
     let types_root: &mut Node = maybe_types_root.ok_or(())?;
     let maybe_global_root: Option<&mut Node> = types_root.children.iter_mut().find(|a| a.name == GLOBAL_NAMESPACE);
