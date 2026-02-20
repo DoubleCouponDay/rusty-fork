@@ -1777,12 +1777,7 @@ impl Index {
 
         for member in members.iter() {
             if member.get_name().eq_ignore_ascii_case(variable_name) {
-                // VAR_TEMP, VAR_EXTERNAL, and return variables are not part of the struct
-                if member.is_temp() || member.is_var_external() || member.is_return() {
-                    return None;
-                } else {
-                    return Some(index);
-                }
+                return Some(index);
             }
             // Only count members that are part of the struct
             if !member.is_temp() && !member.is_var_external() && !member.is_return() {
