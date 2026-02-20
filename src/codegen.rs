@@ -336,7 +336,6 @@ impl<'ink> CodeGen<'ink> {
 
         //Generate the POU stubs in the first go to make sure they can be referenced.
         for implementation in &unit.implementations {
-            println!("generate; implementation: {}", &implementation.name);
             //Don't generate external or generic functions
             if let Some(entry) = global_index.find_pou(implementation.name.as_str()) {
                 if !entry.is_generic() && entry.get_linkage() != &LinkageType::External {
@@ -349,7 +348,6 @@ impl<'ink> CodeGen<'ink> {
 
         self.debug.finalize();
         log::trace!("{}", self.module.to_string());
-        println!("verifying2");
 
         #[cfg(feature = "verify")]
         {
@@ -359,7 +357,6 @@ impl<'ink> CodeGen<'ink> {
                 engine: RefCell::new(None),
             })
         }
-        println!("verifying3");
 
         #[cfg(not(feature = "verify"))]
         Ok(GeneratedModule { module: self.module, location, engine: RefCell::new(None) })

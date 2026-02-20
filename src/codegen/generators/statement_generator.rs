@@ -129,8 +129,6 @@ impl<'a, 'b> StatementCodeGenerator<'a, 'b> {
         mut llvm_index: LlvmTypedIndex<'b>,
         statement: &AstNode,
     ) -> Result<LlvmTypedIndex<'b>, CodegenError> {
-        println!("StatementCodeGenerator; generate_statement");
-
         match statement.get_stmt() {
             AstStatement::EmptyStatement(..) => {
                 //nothing to generate

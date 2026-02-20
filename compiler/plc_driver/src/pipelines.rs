@@ -338,7 +338,6 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
         self.initialize_thread_pool();
 
         // 1. Parse
-        println!("parsing");
         let parsed_project = self.parse()?;
 
         if self.compile_parameters.as_ref().is_some_and(|opt| opt.print_ast) {
@@ -347,11 +346,9 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
         }
 
         // 2. Index
-        println!("indexing");
         let indexed_project = self.index(parsed_project)?;
 
         // 3. Resolve
-        println!("resolving");
         let annotated_project = self.annotate(indexed_project)?;
 
         if self.compile_parameters.as_ref().is_some_and(|opt| opt.print_ast_lowered) {
@@ -365,7 +362,6 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
         };        
 
         // 4. Validate
-        println!("validating");
         annotated_project.validate(&self.context, &mut self.diagnostician, &compile_options.generation)?;
 
         //TODO: probably not needed, should be a participant anyway
@@ -389,7 +385,6 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
         }
 
         // 5. Codegen
-        println!("generating");
         self.generate(&CodegenContext::create(), annotated_project, &compile_options)
     }
 
@@ -431,7 +426,6 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
     }
 
     fn generate(&mut self, _context: &CodegenContext, project: AnnotatedProject, compile_options: &CompileOptions) -> Result<(), Diagnostic> {
-        println!("SourceContainer; generate;");
         self.participants.iter_mut().try_fold((), |_, participant| participant.pre_generate(&project))?;
 
         let got_layout = if let OnlineChange::Enabled { file_name, format } = &compile_options.online_change {
@@ -469,21 +463,14 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
                 })
                 .collect::<Result<Vec<_>, Diagnostic>>()?;
         }
-        println!("SourceContainer; generate; 2");
-
         if let OnlineChange::Enabled { file_name, format } = &compile_options.online_change {
             write_got_layout(got_layout.into_inner().unwrap(), file_name, *format)?;
         }
-        println!("SourceContainer; generate; 3");
-
         self.participants
             .iter()
             .map(|participant| participant.post_generate())
             .reduce(|prev, curr| prev.and(curr))
             .unwrap_or(Ok(()))?;
-
-        println!("SourceContainer; generate; END");
-
         Ok(())
     }
 
@@ -790,7 +777,6 @@ impl AnnotatedProject {
     }
 
     pub fn codegen_to_string(&self, compile_options: &CompileOptions) -> Result<Vec<String>, Diagnostic> {
-        println!("AnnotatedProject; codegen_to_string");
         let got_layout = if let OnlineChange::Enabled { file_name, format } = &compile_options.online_change {
             read_got_layout(file_name, *format)?
         } else {
@@ -798,7 +784,7 @@ impl AnnotatedProject {
         };
         let got_layout = Mutex::new(got_layout);
 
-        let output = self.units
+        self.units
             .iter()
             .map(|AnnotatedUnit { unit, dependencies, literals }| {
                 let context = CodegenContext::create();
@@ -813,10 +799,7 @@ impl AnnotatedProject {
                 )
                 .map(|it| it.persist_to_string())
             })
-            .collect();
-
-        println!("AnnotatedProject; codegen_to_string; END");        
-        output
+            .collect()
     }
 
     pub fn generate_single_module<'ctx>(
@@ -825,8 +808,6 @@ impl AnnotatedProject {
         compile_options: &CompileOptions,
         target: Option<&Target>,
     ) -> Result<Option<GeneratedModule<'ctx>>, Diagnostic> {
-        println!("AnnotatedProject; generate_single_module");
-
         let got_layout = if let OnlineChange::Enabled { file_name, format } = &compile_options.online_change {
             read_got_layout(file_name, *format)?
         } else {
@@ -857,9 +838,7 @@ impl AnnotatedProject {
         else {
             return Ok(None);
         };
-        let output = module.map(Some);
-        println!("AnnotatedProject; generate_single_module; END");
-        output
+        module.map(Some)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -941,15 +920,13 @@ impl AnnotatedProject {
         context: &'ctx CodegenContext,
         compile_options: &CompileOptions,
     ) -> Result<Vec<GeneratedModule<'ctx>>, Diagnostic> {
-        println!("AnnotatedProject; generate_modules");
-
         let got_layout = if let OnlineChange::Enabled { file_name, format } = &compile_options.online_change {
             read_got_layout(file_name, *format)?
         } else {
             HashMap::default()
         };
         let got_layout = Mutex::new(got_layout);
-        let output = self.units
+        self.units
             .iter()
             .map(|AnnotatedUnit { unit, dependencies, literals }| {
                 self.generate_module(
@@ -962,10 +939,7 @@ impl AnnotatedProject {
                     None,
                 )
             })
-            .collect();
-
-        println!("AnnotatedProject; generate_modules; END");        
-        output
+            .collect()
     }
 
     pub fn generate_hardware_information(
