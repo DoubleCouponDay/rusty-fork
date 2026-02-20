@@ -555,6 +555,7 @@ impl<'ink, 'cg> PouGenerator<'ink, 'cg> {
         function_context: &FunctionContext<'ink, '_>,
         debug: &DebugBuilderEnum<'ink>,
     ) -> Result<(), CodegenError> {
+        println!("PouGenerator; generate_local_function_arguments_accessors");
         let members = self.index.get_pou_members(type_name);
         //Generate reference to parameter
         // cannot use index from members because return and temp variables may not be considered for index in build_struct_gep
@@ -662,6 +663,7 @@ impl<'ink, 'cg> PouGenerator<'ink, 'cg> {
         location: &SourceLocation,
         debug: &DebugBuilderEnum<'ink>,
     ) -> Result<(), CodegenError> {
+        println!("PouGenerator; generate_local_pou_variable_accessors");
         let members = self.index.get_pou_members(type_name);
         let param_pointer = function_context
             .function
