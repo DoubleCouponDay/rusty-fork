@@ -3,7 +3,6 @@ use plc_ast::ast::{
     VariableBlock, VariableBlockType,
 };
 use plc_diagnostics::diagnostics::Diagnostic;
-use plc_xmlgen::xml_gen::GenerationParameters;
 
 use super::{
     array::validate_array_assignment,
@@ -119,10 +118,9 @@ pub fn visit_variable_block<T: AnnotationMap>(
     validator: &mut Validator,
     pou: Option<&Pou>,
     block: &VariableBlock,
-    context: &ValidationContext<T>,
-    cli_params: &GenerationParameters
+    context: &ValidationContext<T>
 ) {
-    validate_variable_block(validator, block, cli_params);
+    validate_variable_block(validator, block);
 
     for variable in &block.variables {
         visit_variable(validator, variable, context);
@@ -135,15 +133,7 @@ pub fn visit_variable_block<T: AnnotationMap>(
     }
 }
 
-fn validate_variable_block(validator: &mut Validator, block: &VariableBlock, cli_params: &GenerationParameters) {
-    if matches!(block.kind, VariableBlockType::External) && cli_params.output_xml_omron == false { //Don't display the warning for omron xml generation, as externals are crucial for that workflow.
-        validator.push_diagnostic(
-            Diagnostic::new("VAR_EXTERNAL blocks have no effect")
-                .with_error_code("E106")
-                .with_location(&block.location),
-        );
-    }
-
+fn validate_variable_block(validator: &mut Validator, block: &VariableBlock) {
     if block.constant
         && !matches!(
             block.kind,

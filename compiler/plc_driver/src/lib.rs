@@ -226,10 +226,10 @@ pub fn parse_and_annotate_with_diagnostics<T: SourceContainer + Clone>(
     Ok((pipeline, project))
 }
 
-pub fn parse_and_validate<T: SourceContainer + Clone>(name: &str, src: Vec<T>, gen_params: &GenerationParameters) -> String {
+pub fn parse_and_validate<T: SourceContainer + Clone>(name: &str, src: Vec<T>) -> String {
     match parse_and_annotate_with_diagnostics(name, src, Diagnostician::buffered()) {
         Ok((mut pipeline, project)) => {
-            let _ = project.validate(&pipeline.context, &mut pipeline.diagnostician, gen_params);
+            let _ = project.validate(&pipeline.context, &mut pipeline.diagnostician);
             pipeline.diagnostician.buffer().unwrap()
         }
         Err(diagnostician) => diagnostician.buffer().unwrap(),
@@ -258,7 +258,6 @@ fn generate_to_string_internal<T: SourceContainer>(
     let mut params = cli::CompileParameters::parse(&["plc", "--ir", "--single-module", "-O", "none"])
         .map_err(|e| Diagnostic::new(e.to_string()))?;
     params.generate_debug = debug;
-    let gen_params = params.to_gen_parameters();
 
     let mut pipeline = BuildPipeline {
         context,
@@ -276,7 +275,7 @@ fn generate_to_string_internal<T: SourceContainer>(
     let project = pipeline.annotate(project)?;
     // Validate
     // TODO: move validation to participants, maybe refactor codegen to stop at generated modules and persist in dedicated step?
-    project.validate(&pipeline.context, &mut pipeline.diagnostician, &gen_params)?;
+    project.validate(&pipeline.context, &mut pipeline.diagnostician)?;
     let context = CodegenContext::create();
     let module =
         project.generate_single_module(&context, pipeline.get_compile_options().as_ref().unwrap(), None)?;

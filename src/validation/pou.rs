@@ -4,7 +4,6 @@ use plc_ast::ast::{
 };
 use plc_diagnostics::diagnostics::Diagnostic;
 use plc_source::source_location::SourceLocation;
-use plc_xmlgen::xml_gen::GenerationParameters;
 use signature_validation::validate_method_signature;
 
 use super::{
@@ -13,7 +12,7 @@ use super::{
 };
 use crate::resolver::{AnnotationMap, StatementAnnotation};
 
-pub fn visit_pou<T: AnnotationMap>(validator: &mut Validator, pou: &Pou, context: &ValidationContext<'_, T>, cli_params: &GenerationParameters) {
+pub fn visit_pou<T: AnnotationMap>(validator: &mut Validator, pou: &Pou, context: &ValidationContext<'_, T>) {
     if pou.linkage != LinkageType::External {
         validate_pou(validator, pou);
         validate_interface_impl(validator, context, pou);
@@ -24,7 +23,7 @@ pub fn visit_pou<T: AnnotationMap>(validator: &mut Validator, pou: &Pou, context
         }
 
         for block in &pou.variable_blocks {
-            visit_variable_block(validator, Some(pou), block, context, cli_params);
+            visit_variable_block(validator, Some(pou), block, context);
         }
     }
 }

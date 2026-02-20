@@ -47,7 +47,7 @@ use plc_header_generator::{
 };
 use plc_index::GlobalContext;
 use plc_lowering::inheritance::InheritanceLowerer;
-use plc_xmlgen::xml_gen::{GenerationParameters, copy_xmlfile_to_output};
+use plc_xmlgen::xml_gen::{copy_xmlfile_to_output};
 use project::{
     object::Object,
     project::{LibraryInformation, Project},
@@ -362,7 +362,7 @@ impl<T: SourceContainer> Pipeline for BuildPipeline<T> {
         };        
 
         // 4. Validate
-        annotated_project.validate(&self.context, &mut self.diagnostician, &compile_options.generation)?;
+        annotated_project.validate(&self.context, &mut self.diagnostician)?;
 
         //TODO: probably not needed, should be a participant anyway
         if let Some((location, format)) = self
@@ -752,8 +752,7 @@ impl AnnotatedProject {
     pub fn validate(
         &self,
         ctxt: &GlobalContext,
-        diagnostician: &mut Diagnostician,
-        cli_params: &GenerationParameters
+        diagnostician: &mut Diagnostician
     ) -> Result<(), Diagnostic> {
         // perform global validation
         let mut validator = Validator::new(ctxt);
@@ -764,7 +763,7 @@ impl AnnotatedProject {
         //Perform per unit validation
         self.units.iter().for_each(|AnnotatedUnit { unit, .. }| {
             // validate unit
-            validator.visit_unit(&self.annotations, &self.index, unit, cli_params);
+            validator.visit_unit(&self.annotations, &self.index, unit);
             // log errors
             let diagnostics = validator.diagnostics();
             severity = severity.max(diagnostician.handle(&diagnostics));

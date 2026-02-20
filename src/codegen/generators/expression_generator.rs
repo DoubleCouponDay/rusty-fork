@@ -1543,7 +1543,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
 
                     // For POUs (programs, function blocks, classes), use get_struct_member_index
                     // to compute the correct GEP index. This properly handles POUs with
-                    // VAR_TEMP/VAR_EXTERNAL variables which are not part of the struct
+                    // VAR_TEMP/VAR_EXTERNAL variables which are not part of the struct but they are still allowed to have a GEP Index.
                     // (they're stack-allocated or external).
                     // For regular structs (including vtables), use location_in_parent directly.
                     let member_location = if self.index.find_pou(container_name).is_some() {
