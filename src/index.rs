@@ -1773,7 +1773,6 @@ impl Index {
     pub fn get_struct_member_index(&self, container_name: &str, variable_name: &str) -> Option<u32> {
         let members = self.get_pou_members(container_name);
         let mut index: u32 = 0;
-        println!("get_struct_member_index; container_name: {}; variable_name: {}", container_name, variable_name);
 
         for member in members.iter() {
             if member.get_name().eq_ignore_ascii_case(variable_name) {

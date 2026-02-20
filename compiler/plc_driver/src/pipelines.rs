@@ -896,9 +896,7 @@ impl AnnotatedProject {
             &self.index,
             got_layout,
         )?;
-        let output = code_generator.generate(context, unit, &self.annotations, &self.index, llvm_index).map_err(Into::into);
-        println!("AnnotatedProject; generate_module; END");
-        output
+        code_generator.generate(context, unit, &self.annotations, &self.index, llvm_index).map_err(Into::into)
     }
 
     pub fn codegen_single_module<'ctx>(
