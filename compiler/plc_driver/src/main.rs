@@ -1,5 +1,7 @@
 use std::env;
 
+use env_logger::Env;
+
 fn main() {
     //Initialize the logging
     let env = Env::default();
