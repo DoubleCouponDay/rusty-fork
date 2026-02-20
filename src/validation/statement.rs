@@ -123,6 +123,8 @@ pub fn visit_statement<T: AnnotationMap>(
         AstStatement::JumpStatement(JumpStatement { condition, target }) => {
             visit_statement(validator, condition, context);
             if context.annotations.get(statement).is_none() {
+                println!("statement: visit_statement");
+
                 validator.push_diagnostic(Diagnostic::unresolved_reference(
                     target.get_flat_reference_name().unwrap_or_default(),
                     statement,
@@ -592,6 +594,7 @@ fn validate_reference<T: AnnotationMap>(
 
             _ => (),
         };
+        println!("statement; validate_reference");
         validator.push_diagnostic(Diagnostic::unresolved_reference(ref_name, location));
 
         // was this meant as a direct access?

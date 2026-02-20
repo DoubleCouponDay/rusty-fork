@@ -391,9 +391,10 @@ impl<'ink> GeneratedModule<'ink> {
     }
 
     pub fn merge(self, other: GeneratedModule<'ink>) -> Result<Self, CodegenError> {
+        println!("GeneratedModule; merge; module: {:?}", &other.location.to_str());
         self.module.link_in_module(other.module)?;
         log::trace!("Merged: {}", self.module.to_string());
-
+        println!("GeneratedModule; merge; END");
         Ok(self)
     }
 

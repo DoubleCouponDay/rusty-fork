@@ -1472,6 +1472,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
     ) -> Result<(), CodegenError> {
         let function_name = param_context.function_name;
         let parameter_struct = param_context.parameter_struct;
+        println!("expression_generator; generate_formal_parameter");
 
         if let Some(StatementAnnotation::Variable { qualified_name, .. }) = self.annotations.get(left) {
             let parameter = self
@@ -1546,11 +1547,17 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                     // VAR_TEMP/VAR_EXTERNAL variables which are not part of the struct
                     // (they're stack-allocated or external).
                     // For regular structs (including vtables), use location_in_parent directly.
+                    println!("expression_generator; create_llvm_pointer_value_for_reference1");
+
                     let member_location = if self.index.find_pou(container_name).is_some() {
+                        println!("1");
+
                         self.index
                             .get_struct_member_index(container_name, name)
                             .ok_or_else(|| Diagnostic::unresolved_reference(qualified_name, offset))?
                     } else {
+                        println!("2");
+
                         self.index
                             .find_fully_qualified_variable(qualified_name)
                             .map(VariableIndexEntry::get_location_in_parent)
@@ -1578,6 +1585,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                 }
             }
         }
+        println!("expression_generator; create_llvm_pointer_value_for_reference2");
 
         // no context ... so just something like 'x'
         match self.annotations.get(context) {
@@ -2311,6 +2319,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                     {
                         let member: &VariableIndexEntry =
                             self.index.find_fully_qualified_variable(qualified_name).ok_or_else(|| {
+                                println!("pipelines; generate_literal_struct");
                                 Diagnostic::unresolved_reference(qualified_name, data.left.as_ref())
                             })?;
 
@@ -3021,6 +3030,7 @@ pub fn get_implicit_call_parameter<'a>(
                         .into(),
                 );
             };
+            println!("pipelines; get_implicit_call_parameter");
 
             let loc = parameters
                 .iter()
