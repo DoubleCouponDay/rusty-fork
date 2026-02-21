@@ -1561,10 +1561,10 @@ impl Index {
                     None
                 }
             })
-            .filter(|it| {
-                // VAR_EXTERNAL variables are not local members
-                !it.is_var_external()
-            })
+            // .filter(|it| {
+            //     // VAR_EXTERNAL variables are not local members
+            //     !it.is_var_external()
+            // })
     }
 
     /// Searches for method names in the given container, if not found, attempts to search for it in super class
@@ -1777,13 +1777,15 @@ impl Index {
         for member in members.iter() {
             if member.get_name().eq_ignore_ascii_case(variable_name) {
                 // VAR_TEMP, VAR_EXTERNAL, and return variables are not part of the struct
-                if member.is_temp() || member.is_var_external() || member.is_return() {
+                // if member.is_temp() || member.is_var_external() || member.is_return() {
+                if member.is_temp() || member.is_return() {
                     return None;
                 } else {
                     return Some(index);
                 }
             }
             // Only count members that are part of the struct
+            // if !member.is_temp() && !member.is_var_external() && !member.is_return() {
             if !member.is_temp() && !member.is_return() {
                 index += 1;
             }
