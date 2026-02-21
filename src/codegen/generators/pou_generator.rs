@@ -693,8 +693,7 @@ impl<'ink, 'cg> PouGenerator<'ink, 'cg> {
         //Generate reference to parameter
         // cannot use index from members because return and temp variables may not be considered for index in build_struct_gep
         let mut var_count = 0;
-        // for m in members.iter().filter(|it| !it.is_var_external()) {
-        for m in members.iter() {
+        for m in members.iter().filter(|it| !it.is_var_external()) {
             let parameter_name = m.get_name();
             //TODO: this is not creating local variables
             let (name, variable) = if m.is_temp() || m.is_return() {

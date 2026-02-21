@@ -333,8 +333,7 @@ impl<'ink> DebugBuilder<'ink> {
         // Collect member debug info
         let member_types: Vec<_> = members
             .iter()
-            // .filter(|it| !(it.is_temp() || it.is_variadic() || it.is_var_external()))
-            .filter(|it| !(it.is_temp() || it.is_variadic()))
+            .filter(|it| !(it.is_temp() || it.is_variadic() || it.is_var_external()))
             .enumerate()
             .filter_map(|(element_index, member)| {
                 let dt = index.get_type(member.get_type_name().as_ref()).ok()?;
