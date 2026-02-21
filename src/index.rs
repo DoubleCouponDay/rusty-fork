@@ -1784,7 +1784,7 @@ impl Index {
                 }
             }
             // Only count members that are part of the struct
-            if !member.is_temp() && !member.is_return() {
+            if !member.is_temp() && !member.is_var_external() && !member.is_return() {
                 index += 1;
             }
         }
