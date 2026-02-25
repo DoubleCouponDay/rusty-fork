@@ -1562,23 +1562,26 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                     // VAR_TEMP/VAR_EXTERNAL variables which are not part of the struct but they are still allowed to have a GEP Index.
                     // (they're stack-allocated or external).
                     // For regular structs (including vtables), use location_in_parent directly.
-                    let member_location = if self.index.find_pou(container_name).is_some() {
-                        self.index
-                            .get_struct_member_index(container_name, name)
-                            .ok_or_else(|| Diagnostic::unresolved_reference(qualified_name, offset))?
-                    } else {
-                        self.index
-                            .find_fully_qualified_variable(qualified_name)
-                            .map(VariableIndexEntry::get_location_in_parent)
-                            .ok_or_else(|| Diagnostic::unresolved_reference(qualified_name, offset))?
-                    };
 
+                    let mut maybe_member_location = self.index //test fully qualified variables first
+                            .find_fully_qualified_variable(qualified_name)
+                            .map(VariableIndexEntry::get_location_in_parent);
+
+                    if maybe_member_location.is_none() { //test struct internal members second
+                        maybe_member_location = self.index
+                            .get_struct_member_index(container_name, name);
+                    }                    
+
+                    if maybe_member_location.is_none() { //not found. compilation error unresolved reference
+                        return Err(crate::codegen::CodegenError::from(Diagnostic::unresolved_reference(qualified_name, offset)));
+                    }
+                
                     let pointee = self.llvm_index.get_associated_type(container_name).unwrap();
 
                     let gep: PointerValue<'_> = self.llvm.get_member_pointer_from_struct(
                         pointee,
                         qualifier,
-                        member_location,
+                        maybe_member_location.unwrap(),
                         name,
                     )?;
 
