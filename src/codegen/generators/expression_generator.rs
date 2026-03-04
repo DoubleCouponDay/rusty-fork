@@ -1557,20 +1557,18 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                     let qualifier_type = self.annotations.get_type(qualifier_node, self.index).unwrap();
                     let container_name = qualifier_type.get_name();
 
-                    // For POUs (programs, function blocks, classes), use get_struct_member_index
-                    // to compute the correct GEP index. This properly handles POUs with
-                    // VAR_TEMP/VAR_EXTERNAL variables which are not part of the struct but they are still allowed to have a GEP Index.
-                    // (they're stack-allocated or external).
-                    // For regular structs (including vtables), use location_in_parent directly.
+                    let mut maybe_member_location = self.index
+                        .get_struct_member_index(container_name, name);
 
-                    let mut maybe_member_location = self.index //test fully qualified variables first
-                            .find_fully_qualified_variable(qualified_name)
+                    if maybe_member_location.is_none() {
+                        maybe_member_location = self.index.find_fully_qualified_variable(qualified_name)
                             .map(VariableIndexEntry::get_location_in_parent);
+                    }
 
-                    if maybe_member_location.is_none() { //test struct internal members second
-                        maybe_member_location = self.index
-                            .get_struct_member_index(container_name, name);
-                    }                    
+                    if maybe_member_location.is_none() {
+                        maybe_member_location = self.index.find_global_variable(name)
+                            .map(VariableIndexEntry::get_location_in_parent);
+                    }
 
                     if maybe_member_location.is_none() { //not found. compilation error unresolved reference
                         return Err(crate::codegen::CodegenError::from(Diagnostic::unresolved_reference(qualified_name, offset)));
@@ -1584,7 +1582,6 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                         maybe_member_location.unwrap(),
                         name,
                     )?;
-
                     return Ok(gep);
                 }
                 _ => {
