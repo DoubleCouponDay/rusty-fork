@@ -1530,7 +1530,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
         })
     }
 
-    /// geneartes a gep for the given reference with an optional qualifier
+    /// generates a gep for the given reference with an optional qualifier
     ///
     /// - `qualifier` an optional qualifier for a reference (e.g. myStruct.x where myStruct is the qualifier for x)
     /// - `name` the name of the reference-name (e.g. myStruct.x where 'x' is the reference-name)
@@ -1567,7 +1567,10 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
 
                     if maybe_member_location.is_none() {
                         maybe_member_location = self.index.find_global_variable(name)
-                            .map(VariableIndexEntry::get_location_in_parent);
+                            .map(|a| -> u32 {
+                                let location = VariableIndexEntry::get_location_in_parent(a);
+                                return location;
+                            });
                     }
 
                     if maybe_member_location.is_none() { //not found. compilation error unresolved reference
@@ -2833,8 +2836,9 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
     ) -> Result<ExpressionValue<'ink>, CodegenError> {
         match (access, base) {
             // `.foo`
-            (ReferenceAccess::Global(node), _) => {
+            (ReferenceAccess::Global(node), _) => {                
                 let name = node.get_flat_reference_name().unwrap_or("unknown");
+                println!("generate_reference_expression; ReferenceAccess::Global; {}", name);
 
                 let value = self.create_llvm_pointer_value_for_reference(
                     None,
@@ -2861,6 +2865,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                     self.generate_direct_access_expression(base, &base_value, member, &data.access, &data.index)
                 } else {
                     let member_name = member.get_flat_reference_name().unwrap_or("unknown");
+                    println!("generate_reference_expression; ReferenceAccess::Member; {}", member_name);
 
                     let value = self.create_llvm_pointer_value_for_reference(
                         base_value.map(|it| (base.unwrap(), it.get_basic_value_enum().into_pointer_value())),
