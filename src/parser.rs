@@ -327,7 +327,12 @@ fn parse_pou(
                 KeywordVarExternal,
             ];
             while allowed_var_types.contains(&lexer.token) {
-                variable_blocks.push(parse_variable_block(lexer, LinkageType::Internal));
+                let mut linkage_type = LinkageType::Internal;
+
+                if lexer.token == KeywordVarExternal {
+                    linkage_type = LinkageType::External;                                  
+                }
+                variable_blocks.push(parse_variable_block(lexer, linkage_type));
             }
 
             let mut impl_pous = Vec::new();

@@ -429,7 +429,7 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Option<AstNode> {
             (None, None) => {
                 let exp = parse_atomic_leaf_expression(lexer)?;
                 // pack if this is something to be resolved
-                current = if exp.is_identifier() {
+                current = if exp.is_identifier() {                    
                     Some(AstFactory::create_member_reference(exp, None, lexer.next_id()))
                 } else {
                     Some(exp)
