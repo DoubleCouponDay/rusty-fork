@@ -330,7 +330,8 @@ fn parse_pou(
                 let mut linkage_type = LinkageType::Internal;
 
                 if lexer.token == KeywordVarExternal {
-                    linkage_type = LinkageType::External;                                  
+                    println!("parse_pou; found KeywordVarExternal");
+                    linkage_type = LinkageType::External;
                 }
                 variable_blocks.push(parse_variable_block(lexer, linkage_type));
             }
@@ -1467,7 +1468,7 @@ fn parse_variable_block(lexer: &mut ParseSession, linkage: LinkageType) -> Varia
             it.initializer = Some(AstFactory::create_default_value(it.location.clone(), lexer.next_id()));
         });
     }
-
+    println!("parse_variable_block; linkage: {:?}, variables: {:?}", linkage, variables);
     VariableBlock { access, constant, retain, variables, kind: variable_block_type, location, linkage: linkage.clone() }
 }
 
