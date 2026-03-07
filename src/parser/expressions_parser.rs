@@ -430,6 +430,7 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Option<AstNode> {
                 let exp = parse_atomic_leaf_expression(lexer)?;
                 // pack if this is something to be resolved
                 current = if exp.is_identifier() {                    
+                    println!("parse_qualified_reference; (None, None) ; member: {:?}", &exp);
                     Some(AstFactory::create_member_reference(exp, None, lexer.next_id()))
                 } else {
                     Some(exp)
@@ -455,6 +456,7 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Option<AstNode> {
                 } else {
                     parse_atomic_leaf_expression(lexer)?
                 };
+                println!("parse_qualified_reference; (Some(base), Some(KeywordDot)); name: {:?}", &member);
                 current = Some(AstFactory::create_member_reference(member, Some(base), lexer.next_id()));
             }
             // CAST-Statement: INT#a.b.c
@@ -469,6 +471,8 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Option<AstNode> {
                 let type_range = lexer
                     .source_range_factory
                     .create_range(location_start..(location_start + type_name.len()));
+                println!("parse_qualified_reference; (_, Some(TypeCastPrefix)); name: {:?}", type_name.as_str());                
+
                 current = Some(AstFactory::create_cast_statement(
                     AstFactory::create_member_reference(
                         AstFactory::create_identifier(type_name.as_str(), &type_range, lexer.next_id()),
@@ -518,7 +522,9 @@ fn parse_direct_access(lexer: &mut ParseSession, access: DirectAccessType) -> Op
     let index = match lexer.token {
         LiteralInteger => parse_strict_literal_integer(lexer),
         Identifier => {
-            let location = lexer.location();
+            let location: SourceLocation = lexer.location();
+            println!("parse_direct_access; Identifier; name: {:?}", lexer.slice_and_advance().as_str());
+
             Some(AstFactory::create_member_reference(
                 AstFactory::create_identifier(lexer.slice_and_advance().as_str(), location, lexer.next_id()),
                 None,

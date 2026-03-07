@@ -1870,6 +1870,8 @@ impl AstFactory {
     }
 
     pub fn create_member_reference(member: AstNode, base: Option<AstNode>, id: AstId) -> AstNode {
+        println!("create_member_reference; member: {:?}, base: {:?}, id: {:?}", &member, &base, &id);
+
         let location = base
             .as_ref()
             .map(|it| it.get_location().span(&member.get_location()))

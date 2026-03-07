@@ -167,6 +167,7 @@ fn process_global_variables(unit: &mut CompilationUnit, id_provider: &mut IdProv
         if let Some(ref node) = global_var.address {
             if let AstStatement::HardwareAccess(hardware) = &node.stmt {
                 let name = hardware.get_mangled_variable_name();
+                println!("process_global_variables; name: {:?}", &name);
 
                 // %I*: DWORD; should not be declared at this stage, it is just skipped
                 if hardware.is_template() {
