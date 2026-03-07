@@ -316,6 +316,8 @@ impl AstVisitorMut for AggregateTypeLowerer {
             self.push_statement(alloca);
             let location = stmt.parameters.as_ref().map(|it| it.get_location()).unwrap_or_default();
             let id = stmt.parameters.as_ref().map(|it| it.get_id()).unwrap_or(self.id_provider.next_id());
+            println!("visit_call_statement; name: {}", &name);
+
             let reference = super::create_member_reference_with_location(
                 &name,
                 self.id_provider.clone(),
@@ -329,6 +331,8 @@ impl AstVisitorMut for AggregateTypeLowerer {
                 .map(|it| flatten_expression_list(it))
                 .is_some_and(|it| it.iter().any(|it| it.is_assignment()))
             {
+                println!("visit_call_statement; name: {}", &return_name);
+
                 let left = AstFactory::create_member_reference(
                     AstFactory::create_identifier(
                         &return_name,
@@ -356,6 +360,8 @@ impl AstVisitorMut for AggregateTypeLowerer {
 
             if is_generic_function {
                 //For generic functions, we need to replace the generic name with the function name
+                println!("visit_call_statement; is_generic_function; name: {}", &qualified_name);
+
                 *stmt.operator = AstFactory::create_member_reference(
                     AstFactory::create_identifier(
                         &qualified_name,
@@ -367,6 +373,8 @@ impl AstVisitorMut for AggregateTypeLowerer {
                 )
             };
             stmt.parameters.replace(Box::new(AstFactory::create_expression_list(parameters, location, id)));
+            println!("visit_call_statement; name: {}", &name);
+
             //steal parameters, add one to the start, return parameters
             let mut reference = super::create_member_reference_with_location(
                 &name,

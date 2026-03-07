@@ -135,6 +135,8 @@ impl InitVisitor {
                 AstStatement::ReferenceExpr(_) => {
                     initializer.get_flat_reference_name().and_then(|flat_ref| {
                         needs_qualifier(flat_ref).map_or_else(Option::Some, |q| {
+                            println!("update_initializer; ReferenceExpr");
+
                             q.then_some("self")
                                 .map(|it| create_member_reference(it, self.ctxt.get_id_provider(), None))
                                 .and_then(|base| {
@@ -421,6 +423,8 @@ pub fn create_member_reference_with_location(
     base: Option<AstNode>,
     location: SourceLocation,
 ) -> AstNode {
+    println!("create_member_reference_with_location; ident: {}", ident);
+
     AstFactory::create_member_reference(
         AstFactory::create_identifier(ident, location, id_provider.next_id()),
         base,
@@ -429,7 +433,18 @@ pub fn create_member_reference_with_location(
 }
 
 fn create_member_reference(ident: &str, id_provider: IdProvider, base: Option<AstNode>) -> AstNode {
+    println!("create_member_reference; ident: {:?}", ident);
     create_member_reference_with_location(ident, id_provider, base, SourceLocation::internal())
+}
+
+fn create_global_reference(ident: &str, id_provider: &mut IdProvider, location: &SourceLocation) -> AstNode {
+    println!("create_global_reference; ident: {}, location: {:?}", ident, location);
+
+    AstFactory::create_global_reference(
+        id_provider.next_id(),
+        AstFactory::create_identifier(ident, location.clone(), id_provider.next_id()),
+        location.clone()
+    )
 }
 
 /// Takes some expression such as `bar := (baz := (qux := ADR(val)), baz2 := (qux := ADR(val)))` returning all final
@@ -470,6 +485,7 @@ fn create_assignments_from_initializer(
 
     let mut result = vec![];
     for mut path in create_assignment_paths(initializer, id_provider.clone()) {
+        println!("create_assignments_from_initializer; var_ident: {}", var_ident);
         path.insert(0, create_member_reference(var_ident, id_provider.clone(), None));
         if self_ident.is_some() {
             path.insert(0, create_member_reference("self", id_provider.clone(), None));
@@ -510,6 +526,8 @@ fn create_ref_assignment(
     rhs: &AstNode,
     mut id_provider: IdProvider,
 ) -> AstNode {
+    println!("create_ref_assignment; lhs_ident: {}", lhs_ident);
+
     let lhs = create_member_reference(
         lhs_ident,
         id_provider.clone(),
@@ -524,6 +542,8 @@ fn create_assignment(
     rhs: &AstNode,
     mut id_provider: IdProvider,
 ) -> AstNode {
+    println!("create_assignment; lhs_ident: {}", lhs_ident);
+
     let lhs = create_member_reference(
         lhs_ident,
         id_provider.clone(),
@@ -539,6 +559,8 @@ pub fn create_call_statement(
     mut id_provider: IdProvider,
     location: &SourceLocation,
 ) -> AstNode {
+    println!("create_call_statement; operator: {}", operator);
+
     let op = create_member_reference(operator, id_provider.clone(), None);
     let param = create_member_reference(
         member_id,

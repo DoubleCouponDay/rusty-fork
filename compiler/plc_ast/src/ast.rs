@@ -2008,6 +2008,8 @@ impl AstFactory {
         parameter_list_id: usize,
         location: &SourceLocation,
     ) -> AstNode {
+        println!("create_call_to; function_name: {}", &function_name);
+
         AstNode::new(
             AstStatement::CallStatement(CallStatement {
                 operator: Box::new(AstFactory::create_member_reference(
@@ -2051,6 +2053,8 @@ impl AstFactory {
         location: &SourceLocation,
         mut id_provider: IdProvider,
     ) -> AstNode {
+        println!("create_call_to_with_ids; function_name: {}", function_name);
+
         AstNode::new(
             AstStatement::CallStatement(CallStatement {
                 operator: Box::new(AstFactory::create_member_reference(

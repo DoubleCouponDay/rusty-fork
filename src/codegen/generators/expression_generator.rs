@@ -2908,6 +2908,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
             // `INT#target` (INT = base)
             (ReferenceAccess::Cast(target), Some(base)) => {
                 if target.as_ref().is_identifier() {
+                    println!("generate_reference_expression; ReferenceAccess::Cast");
                     let mr =
                         AstFactory::create_member_reference(target.as_ref().clone(), None, target.get_id());
                     self.generate_expression_value(&mr)

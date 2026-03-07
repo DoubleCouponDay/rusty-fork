@@ -1,6 +1,6 @@
 use crate::{
-    index::{const_expressions::UnresolvableKind, get_init_fn_name, FxIndexMap, FxIndexSet},
-    lowering::{create_call_statement, create_member_reference},
+    index::{FxIndexMap, FxIndexSet, const_expressions::UnresolvableKind, get_init_fn_name},
+    lowering::{create_call_statement, create_global_reference, create_member_reference},
     resolver::const_evaluator::UnresolvableConstant,
 };
 use plc_ast::{
@@ -291,6 +291,7 @@ fn create_user_init_units(lowerer: &InitVisitor) -> Vec<CompilationUnit> {
                 .collect::<Vec<_>>();
 
             if *has_fb_init {
+                println!("create_user_init_units; has_fb_init");
                 let base = create_member_reference("self", id_provider.clone(), None);
                 let op = create_member_reference("fb_init", id_provider.clone(), Some(base));
                 let call_statement =
@@ -360,6 +361,7 @@ fn create_init_wrapper_function(
             }
         }
     }
+    println!("create_init_wrapper_function");
 
     let calls = programs
         .chain(global_instances)
@@ -408,7 +410,7 @@ fn get_global_user_init_statements(lowerer: &InitVisitor) -> Vec<AstNode> {
                     lowerer.index.find_effective_type_by_name(it.get_type_name()).and_then(|dt| {
                         let name = dt.get_type_information().get_name();
                         if lowerer.user_inits.contains_key(name) {
-                            Some((get_user_init_fn_name(name), var_name))
+                            Some((get_user_init_fn_name(name), var_name, it.source_location.clone()))
                         } else {
                             None
                         }
@@ -423,17 +425,24 @@ fn get_global_user_init_statements(lowerer: &InitVisitor) -> Vec<AstNode> {
 
     let programs = lowerer.unresolved_initializers.iter().filter_map(|(scope, _)| {
         if lowerer.index.find_pou(scope).is_some_and(|pou| pou.is_program()) {
-            Some((get_user_init_fn_name(scope), scope))
+            Some((get_user_init_fn_name(scope), scope, SourceLocation::undefined()))
         } else {
             None
         }
     });
     let mut id_provider = lowerer.ctxt.id_provider.clone();
+    println!("get_global_user_init_statements");
+
     programs
         .chain(global_instances)
-        .map(|(fn_name, param)| {
-            let op = create_member_reference(&fn_name, lowerer.ctxt.id_provider.clone(), None);
-            let param = create_member_reference(param, lowerer.ctxt.id_provider.clone(), None);
+        .map(|(fn_name, param, location)| {
+            // let op = create_member_reference(&fn_name, lowerer.ctxt.id_provider.clone(), None);
+            // let param = create_member_reference(param, lowerer.ctxt.id_provider.clone(), None);
+            let mut cloned_provider = lowerer.ctxt.id_provider.clone();
+
+            let op = create_global_reference(&fn_name, &mut cloned_provider, &location);
+            let param = create_global_reference(param, &mut cloned_provider, &location);
+            
             AstFactory::create_call_statement(
                 op,
                 Some(param),

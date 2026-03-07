@@ -100,6 +100,8 @@ pub fn pre_process(unit: &mut CompilationUnit, mut id_provider: IdProvider) {
                                 build_enum_initializer(&last_name, &location, &mut id_provider, enum_name)
                             });
                             last_name = Some(element_name.to_string());
+                            println!("pre_process; initialized_enum_elements; map");
+
                             AstFactory::create_assignment(
                                 AstFactory::create_member_reference(
                                     AstFactory::create_identifier(
@@ -173,6 +175,7 @@ fn process_global_variables(unit: &mut CompilationUnit, id_provider: &mut IdProv
                 if hardware.is_template() {
                     continue;
                 }
+                println!("process_global_variables; name: {}", &name);
 
                 let mangled_initializer = AstFactory::create_member_reference(
                     AstFactory::create_identifier(&name, SourceLocation::internal(), id_provider.next_id()),
@@ -257,6 +260,7 @@ fn build_enum_initializer(
 ) -> AstNode {
     if let Some(last_element) = last_name.as_ref() {
         // generate a `enum#last + 1` statement
+        println!("build_enum_initializer; last_name: {:?}", last_name);
         let enum_ref = AstFactory::create_identifier(last_element, location, id_provider.next_id());
         let type_element = AstFactory::create_member_reference(
             AstFactory::create_identifier(enum_name, location, id_provider.next_id()),
