@@ -530,6 +530,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
             .llvm_index
             .find_associated_implementation(implementation_name) // using the non error option to control the output error
             .ok_or_else(|| {
+                println!("generate_call_statement; error1");
                 Diagnostic::codegen_error(
                     format!("No callable implementation associated to {implementation_name:?}"),
                     operator,
@@ -641,6 +642,8 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
         // and use it together with the loaded function pointer value.
         let function_value =
             self.llvm_index.find_associated_implementation(qualified_pou_name).ok_or_else(|| {
+                println!("generate_fnptr_call; error2");
+
                 Diagnostic::codegen_error(
                     format!("No callable implementation associated to {qualified_pou_name:?}"),
                     operator,

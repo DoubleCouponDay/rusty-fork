@@ -437,7 +437,7 @@ fn create_member_reference(ident: &str, id_provider: IdProvider, base: Option<As
     create_member_reference_with_location(ident, id_provider, base, SourceLocation::internal())
 }
 
-fn create_global_reference(ident: &str, id_provider: &mut IdProvider, location: &SourceLocation) -> AstNode {
+fn create_global_reference(ident: &str, mut id_provider: IdProvider, location: &SourceLocation) -> AstNode {
     println!("create_global_reference; ident: {}, location: {:?}", ident, location);
 
     AstFactory::create_global_reference(

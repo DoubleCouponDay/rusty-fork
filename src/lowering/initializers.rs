@@ -438,16 +438,14 @@ fn get_global_user_init_statements(lowerer: &InitVisitor) -> Vec<AstNode> {
         .map(|(fn_name, param, location)| {
             // let op = create_member_reference(&fn_name, lowerer.ctxt.id_provider.clone(), None);
             // let param = create_member_reference(param, lowerer.ctxt.id_provider.clone(), None);
-            let mut cloned_provider = lowerer.ctxt.id_provider.clone();
-
-            let op = create_global_reference(&fn_name, &mut cloned_provider, &location);
-            let param = create_global_reference(param, &mut cloned_provider, &location);
+            let op = create_global_reference(&fn_name, lowerer.ctxt.id_provider.clone(), &location);
+            let param = create_global_reference(param, lowerer.ctxt.id_provider.clone(), &location);
             
             AstFactory::create_call_statement(
                 op,
                 Some(param),
                 id_provider.next_id(),
-                SourceLocation::internal(),
+                location,
             )
         })
         .collect::<Vec<_>>()
