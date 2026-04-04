@@ -241,6 +241,8 @@ impl<'ink> LlvmTypedIndex<'ink> {
     }
 
     pub fn find_associated_implementation(&self, callable_name: &str) -> Option<FunctionValue<'ink>> {
+        println!("find_associated_implementation; callable_name: {:?}; implementations: {:?}", callable_name, &self.implementations.keys());
+
         self.implementations
             .get(&callable_name.to_lowercase())
             .copied()

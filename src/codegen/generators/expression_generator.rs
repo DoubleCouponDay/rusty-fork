@@ -525,6 +525,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
             operator,
             self.get_function_context(operator)?,
         )?;
+        println!("generate_call_statement; implementation_name: {:?}", implementation_name);
 
         let function = self
             .llvm_index
@@ -2850,7 +2851,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                     let datatype = self.annotations.get_type(node, self.index).unwrap();
                     self.llvm_index.get_associated_type(&datatype.name).unwrap()
                 };
-
+                println!("generate_reference_expression; OK");
                 Ok(ExpressionValue::LValue(value, pointee))
             }
 

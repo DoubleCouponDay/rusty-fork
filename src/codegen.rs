@@ -260,6 +260,8 @@ impl<'ink> CodeGen<'ink> {
         }
 
         //Generate opaque functions for implementations and associate them with their types
+
+        println!("generate_llvm_index; generate_implementation_stubs");
         let llvm = Llvm::new(context, context.create_builder());
         let llvm_impl_index = pou_generator::generate_implementation_stubs(
             &self.module,
