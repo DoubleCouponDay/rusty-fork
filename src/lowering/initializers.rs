@@ -1,6 +1,6 @@
 use crate::{
     index::{FxIndexMap, FxIndexSet, const_expressions::UnresolvableKind, get_init_fn_name},
-    lowering::{create_call_statement, create_global_reference, create_member_reference},
+    lowering::{create_call_statement, create_member_reference},
     resolver::const_evaluator::UnresolvableConstant,
 };
 use plc_ast::{
@@ -436,10 +436,8 @@ fn get_global_user_init_statements(lowerer: &InitVisitor) -> Vec<AstNode> {
     programs
         .chain(global_instances)
         .map(|(fn_name, param, location)| {
-            // let op = create_member_reference(&fn_name, lowerer.ctxt.id_provider.clone(), None);
-            // let param = create_member_reference(param, lowerer.ctxt.id_provider.clone(), None);
-            let op = create_global_reference(&fn_name, lowerer.ctxt.id_provider.clone(), &location);
-            let param = create_global_reference(param, lowerer.ctxt.id_provider.clone(), &location);
+            let op = create_member_reference(&fn_name, lowerer.ctxt.id_provider.clone(), None);
+            let param = create_member_reference(param, lowerer.ctxt.id_provider.clone(), None);
             
             AstFactory::create_call_statement(
                 op,
