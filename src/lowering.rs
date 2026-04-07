@@ -441,9 +441,9 @@ fn create_global_reference(ident: &str, mut id_provider: IdProvider, location: &
     println!("create_global_reference; ident: {}, location: {:?}", ident, location);
 
     AstFactory::create_global_reference(
-        id_provider.next_id(),
         AstFactory::create_identifier(ident, location.clone(), id_provider.next_id()),
-        location.clone()
+        location.clone(),
+        id_provider.next_id()
     )
 }
 
