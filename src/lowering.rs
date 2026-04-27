@@ -177,6 +177,8 @@ impl InitVisitor {
     }
 
     fn add_init_statements(&mut self, implementation: &mut plc_ast::ast::Implementation) {
+        println!("add_init_statements");
+
         let predicate = |var: &VariableIndexEntry| {
             var.is_temp()
                 || var.is_var_external()
@@ -184,7 +186,7 @@ impl InitVisitor {
                     && var.is_local())
         };
         let strip_temporaries = |inits: &mut InitAssignments| {
-            let mut temps = InitAssignments::default();
+            let mut temps: indexmap::IndexMap<String, Option<AstNode>, std::hash::BuildHasherDefault<rustc_hash::FxHasher>> = InitAssignments::default();
             let ids = inits
                 .iter()
                 .filter(|(id, _)| self.index.find_member(&implementation.name, id).is_some_and(predicate))
@@ -214,6 +216,8 @@ impl InitVisitor {
 
         // collect simple assignments
         let assignments = temps.into_iter().filter_map(|(lhs, init)| {
+            println!("add_init_statements; lhs: {:?}, init: {:?}", &lhs, &init);
+
             init.as_ref().map(|it| {
                 let lhs_ty = self
                     .index
@@ -225,6 +229,7 @@ impl InitVisitor {
                     })
                     .unwrap();
                 if lhs_ty.is_reference_to() || lhs_ty.is_alias() {
+                    println!("add_init_statements; is reference or is alias");
                     // XXX: ignore REF_TO for temp variables since they can be generated regularly
                     let rhs = if let AstStatement::CallStatement(CallStatement {
                         parameters: Some(parameter),
@@ -236,8 +241,17 @@ impl InitVisitor {
                         it
                     };
                     // `REFERENCE TO` assignments in a POU body are automatically dereferenced and require the `REF=` operator to assign a pointer instead.
-                    create_ref_assignment(&lhs, None, rhs, self.ctxt.get_id_provider())
+
+                    // if true {
+                    //     create_global_ref_assignment(&lhs, rhs, self.ctxt.get_id_provider(), &implementation.location)
+                    // }
+
+                    // else {
+                        create_ref_assignment(&lhs, None, rhs, self.ctxt.get_id_provider())
+                    // }
+                    
                 } else {
+                    println!("add_init_statements; is NOT reference and is NOT alias");
                     create_assignment(&lhs, None, it, self.ctxt.get_id_provider())
                 }
             })
@@ -247,14 +261,28 @@ impl InitVisitor {
         let mut implicit_calls = Vec::new();
         let mut user_init_calls = Vec::new();
         self.index.get_pou_members(&implementation.name).iter().filter(|var| predicate(var)).for_each(
-            |var| {
+            |var: &VariableIndexEntry| {
+                println!("VariableIndexEntry: {}", var.get_name());
+
                 let dti =
                     self.index.get_effective_type_or_void_by_name(var.get_type_name()).get_type_information();
                 let is_external = self
                     .index
                     .find_pou(dti.get_name())
                     .is_some_and(|it| it.get_linkage() == &LinkageType::External);
+
+                let maybe_linkage: Result<&PouIndexEntry, i32> = self.index.find_pou(dti.get_name()).ok_or(0);
+
+                let linkage = match maybe_linkage {
+                    Ok(item) => format!("{:?}", item.get_linkage()),
+                    Err(_) => String::new(),
+                };
+
+                println!("dti name: {}, linkage: {:?}", dti.get_name(), &linkage);
+
                 if dti.is_struct() && !is_external {
+                    println!("dti.is_struct: {}, !is_external: {}", dti.is_struct(), !is_external);
+
                     implicit_calls.push(create_call_statement(
                         &get_init_fn_name(dti.get_name()),
                         var.get_name(),
@@ -264,6 +292,8 @@ impl InitVisitor {
                     ));
                 }
                 if self.user_inits.contains_key(dti.get_name()) {
+                    println!("dti name: {}, self.user_inits.contains_key(dti.get_name()): {}", dti.get_name(), self.user_inits.contains_key(dti.get_name()));
+
                     user_init_calls.push(create_call_statement(
                         &get_user_init_fn_name(dti.get_name()),
                         var.get_name(),
@@ -423,7 +453,7 @@ pub fn create_member_reference_with_location(
     base: Option<AstNode>,
     location: SourceLocation,
 ) -> AstNode {
-    println!("create_member_reference_with_location; ident: {}", ident);
+    println!("Context; create_member_reference_with_location; ident: {}", ident);
 
     AstFactory::create_member_reference(
         AstFactory::create_identifier(ident, location, id_provider.next_id()),
@@ -433,7 +463,7 @@ pub fn create_member_reference_with_location(
 }
 
 fn create_member_reference(ident: &str, id_provider: IdProvider, base: Option<AstNode>) -> AstNode {
-    println!("create_member_reference; ident: {:?}", ident);
+    println!("lowering; create_member_reference; ident: {:?}", ident);
     create_member_reference_with_location(ident, id_provider, base, SourceLocation::internal())
 }
 
@@ -565,7 +595,25 @@ pub fn create_call_statement(
     let param = create_member_reference(
         member_id,
         id_provider.clone(),
-        base_id.map(|it| create_member_reference(it, id_provider.clone(), None)),
-    );
+        base_id.map(|it| {
+            println!("base_id.map; it: {}", it);
+            return create_member_reference(it, id_provider.clone(), None);
+        }));
     AstFactory::create_call_statement(op, Some(param), id_provider.next_id(), location.clone())
+}
+
+fn create_global_ref_assignment(
+    lhs_ident: &str,
+    rhs: &AstNode,
+    mut id_provider: IdProvider,
+    location: &SourceLocation
+) -> AstNode {
+    println!("create_ref_assignment; lhs_ident: {}", lhs_ident);
+
+    let lhs = create_global_reference(
+        lhs_ident,
+        id_provider.clone(),
+        location
+    );
+    AstFactory::create_ref_assignment(lhs, rhs.to_owned(), id_provider.next_id())
 }

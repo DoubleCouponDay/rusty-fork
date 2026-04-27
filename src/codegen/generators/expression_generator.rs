@@ -2879,7 +2879,7 @@ impl<'ink, 'b> ExpressionCodeGenerator<'ink, 'b> {
                         let effective_ty = self.index.find_effective_type(datatype).unwrap_or(datatype);
                         self.llvm_index.get_associated_type(&effective_ty.name).unwrap()
                     };
-
+ 
                     Ok(ExpressionValue::LValue(value, pointee))
                 }
             }

@@ -84,6 +84,7 @@ impl<'ink> LlvmTypedIndex<'ink> {
             self.loaded_variable_associations.insert(name, assocication);
         }
         for (name, implementation) in other.implementations.drain() {
+            println!("merge; registered `{name}` as implementation: {:?}", &implementation);
             self.implementations.insert(name, implementation);
         }
         self.utf08_literals.extend(other.utf08_literals);
@@ -161,7 +162,8 @@ impl<'ink> LlvmTypedIndex<'ink> {
     ) -> Result<(), CodegenError> {
         let name = callable_name.to_lowercase();
 
-        log::trace!("registered `{name}` as implementation type `{}`", function_value.print_to_string());
+        log::trace!("assocate_implementation; registered `{name}` as implementation type `{}`", function_value.print_to_string());
+        println!("assocate_implementation; registered `{name}` as implementation type `{}`", function_value.print_to_string());
         self.implementations.insert(name, function_value);
 
         Ok(())

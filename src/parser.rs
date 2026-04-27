@@ -1468,7 +1468,7 @@ fn parse_variable_block(lexer: &mut ParseSession, linkage: LinkageType) -> Varia
             it.initializer = Some(AstFactory::create_default_value(it.location.clone(), lexer.next_id()));
         });
     }
-    println!("parse_variable_block; linkage: {:?}, variables: {:?}", linkage, variables);
+    println!("parse_variable_block; linkage: {:?}, access: {:?}, variables: {:?}", linkage, &access, variables);
     VariableBlock { access, constant, retain, variables, kind: variable_block_type, location, linkage: linkage.clone() }
 }
 

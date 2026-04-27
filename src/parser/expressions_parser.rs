@@ -443,6 +443,7 @@ pub fn parse_qualified_reference(lexer: &mut ParseSession) -> Option<AstNode> {
 
                 let expr = parse_atomic_leaf_expression(lexer)?;
                 let location = location_dot.span(&expr.location);
+                println!("parse_qualified_reference; (None, Some(KeywordDot)); member: {:?}", &expr);
 
                 current = Some(AstFactory::create_global_reference(expr, location, lexer.next_id()));
             }
