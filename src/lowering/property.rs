@@ -307,6 +307,7 @@ pub fn lower_to_pou(
                     kind: VariableBlockType::Local,
                     linkage: LinkageType::Internal,
                     network_publish: NetworkPublish::DoNotPublish,
+                    address_pragmas: vec![],
                     location: SourceLocation::internal(),
                 });
                 pou.return_type = Some(datatype);
@@ -331,6 +332,7 @@ pub fn lower_to_pou(
                     kind: VariableBlockType::Input(ArgumentProperty::ByVal),
                     linkage: LinkageType::Internal,
                     network_publish: NetworkPublish::DoNotPublish,
+                    address_pragmas: vec![],
                     location: SourceLocation::internal(),
                 });
             }

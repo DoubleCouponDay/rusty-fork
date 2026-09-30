@@ -156,6 +156,7 @@ impl VirtualTableGenerator {
                 constant: false,
                 retain: false,
                 network_publish: NetworkPublish::DoNotPublish,
+                address_pragmas: vec![],
                 location: location.clone(),
             },
         );

@@ -102,6 +102,7 @@ impl AstVisitorMut for RetainLowerer {
                         retain: true,
                         linkage: plc_ast::ast::LinkageType::Internal,
                         network_publish: plc_ast::ast::NetworkPublish::DoNotPublish,
+                        address_pragmas: vec![],
                         location: SourceLocation::internal(),
                         access: AccessModifier::Public,
                     };

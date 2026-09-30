@@ -32,6 +32,9 @@ pub enum Token {
     #[regex(r"\{namespace[^}]*\}")]
     PropertyNamespace,
 
+    #[regex(r"\{at\s*:=[^}]*\}")]
+    PropertyAt,
+
     #[token("PROGRAM", ignore(case))]
     KeywordProgram,
 

@@ -465,6 +465,12 @@ pub(crate) fn generate_globals(
 
             let cloned_unitname = String::from(unit_name);
 
+            let address_pragma = current_global
+                .address_pragmas
+                .iter()
+                .find(|(name, _)| *name == current_variable.name)
+                .map(|(_, address)| address.as_str());
+
             let maybe_newvar = generate_variable_element(
                 current_variable,
                 generation_parameters,
@@ -474,6 +480,7 @@ pub(crate) fn generate_globals(
                 type_names,
                 namespaces,
                 network_publish,
+                address_pragma,
                 preused_order,
                 b,
                 false,
@@ -924,6 +931,7 @@ pub(crate) fn generate_pous(
                     type_names,
                     namespaces,
                     network_publish,
+                    None,
                     param_order,
                     c,
                     use_order_attr,
@@ -1068,6 +1076,7 @@ fn generate_variable_element(
     type_names: &TypeNameMap,
     namespaces: &NamespaceMap,
     network_publish: Option<String>,
+    address_pragma: Option<&str>,
     preused_order: &mut HashSet<(String, usize)>,
     order: usize,
     add_order: bool,
@@ -1149,7 +1158,11 @@ fn generate_variable_element(
     }
 
     //<Address>
-    if let Some(address) = &current_variable.address {
+    if let Some(address) = address_pragma {
+        let address_node = SAddress::new().attribute(String::from("address"), String::from(address));
+
+        variable_node = variable_node.child(&address_node);
+    } else if let Some(address) = &current_variable.address {
         //not every variable has an address
         if let AstStatement::Literal(ast_literal) = &address.stmt {
             let address_node = SAddress::new().attribute(String::from("address"), ast_literal.to_string());

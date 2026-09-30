@@ -216,6 +216,7 @@ fn invalid_variable_name_error_recovery() {
                 kind: VariableBlockType::Local,
                 linkage: LinkageType::Internal,
                 network_publish: NetworkPublish::DoNotPublish,
+                address_pragmas: vec![],
             }
         )
     );

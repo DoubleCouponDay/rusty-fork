@@ -629,6 +629,7 @@ pub struct VariableBlock {
     pub kind: VariableBlockType,
     pub linkage: LinkageType,
     pub network_publish: NetworkPublish,
+    pub address_pragmas: Vec<(String, String)>,
     pub location: SourceLocation,
 }
 
@@ -675,6 +676,7 @@ impl Default for VariableBlock {
             kind: VariableBlockType::Local,
             linkage: LinkageType::Internal,
             network_publish: NetworkPublish::DoNotPublish,
+            address_pragmas: vec![],
             location: SourceLocation::internal(),
         }
     }

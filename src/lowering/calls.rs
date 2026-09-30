@@ -201,6 +201,7 @@ impl AstVisitorMut for AggregateTypeLowerer {
                 kind: VariableBlockType::InOut,
                 linkage: LinkageType::Internal,
                 network_publish: NetworkPublish::DoNotPublish,
+                address_pragmas: vec![],
                 location: SourceLocation::internal(),
             };
             pou.variable_blocks.insert(0, block)

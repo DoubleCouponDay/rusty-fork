@@ -1120,7 +1120,7 @@ fn parse_data_type_definition(
     let start = lexer.location();
     if lexer.try_consume(KeywordStruct) {
         // Parse struct
-        let variables = parse_variable_list(lexer, "a struct field name");
+        let (variables, _) = parse_variable_list(lexer, "a struct field name");
         Some((
             DataTypeDeclaration::Definition {
                 data_type: Box::new(DataType::StructType { name, variables }),
@@ -1614,6 +1614,25 @@ fn parse_network_publish_pragma(lexer: &mut ParseSession) -> NetworkPublish {
     }
 }
 
+fn parse_address_pragma(lexer: &mut ParseSession) -> Option<String> {
+    let slice = lexer.slice();
+    let parsed = slice.split('\'').nth(1).map(str::trim).filter(|address| !address.is_empty());
+
+    match parsed {
+        Some(address) => Some(String::from(address)),
+        None => {
+            lexer.accept_diagnostic(
+                Diagnostic::new(format!(
+                    "Invalid address in `{slice}`, expected a quoted address such as {{at := 'MC://_MC_AX[1]'}}"
+                ))
+                .with_error_code("E024")
+                .with_location(lexer.location()),
+            );
+            None
+        }
+    }
+}
+
 fn parse_namespace_pragma(lexer: &mut ParseSession) -> Option<String> {
     let slice = lexer.slice();
     let parsed = slice.split('\'').nth(1).map(str::trim).filter(|name| !name.is_empty());
@@ -1684,7 +1703,7 @@ fn parse_variable_block(lexer: &mut ParseSession, linkage: LinkageType) -> Varia
         }
         _ => "a variable name",
     };
-    let mut variables =
+    let (mut variables, address_pragmas) =
         parse_any_in_region(lexer, vec![KeywordEndVar], |lexer| parse_variable_list(lexer, slot_label));
 
     if constant && !matches!(variable_block_type, VariableBlockType::External) {
@@ -1702,6 +1721,7 @@ fn parse_variable_block(lexer: &mut ParseSession, linkage: LinkageType) -> Varia
         kind: variable_block_type,
         linkage,
         network_publish: NetworkPublish::DoNotPublish,
+        address_pragmas,
         location,
     }
 }
@@ -1720,13 +1740,32 @@ fn try_consume_var_modifier(lexer: &mut ParseSession, modifier: Token) -> bool {
     true
 }
 
-fn parse_variable_list(lexer: &mut ParseSession, slot_label: &'static str) -> Vec<Variable> {
+fn parse_variable_list(
+    lexer: &mut ParseSession,
+    slot_label: &'static str,
+) -> (Vec<Variable>, Vec<(String, String)>) {
     let mut variables = vec![];
-    while is_name_slot_candidate(lexer) {
+    let mut address_pragmas = vec![];
+    loop {
+        let address = if lexer.token == PropertyAt {
+            let address = parse_address_pragma(lexer);
+            lexer.advance();
+            address
+        } else {
+            None
+        };
+
+        if !is_name_slot_candidate(lexer) {
+            break;
+        }
+
         let mut line_vars = parse_variable_line(lexer, slot_label);
+        if let Some(address) = address {
+            address_pragmas.extend(line_vars.iter().map(|it| (it.name.clone(), address.clone())));
+        }
         variables.append(&mut line_vars);
     }
-    variables
+    (variables, address_pragmas)
 }
 
 /// True when the current token is something [`expect_name_slot`] would consume.
