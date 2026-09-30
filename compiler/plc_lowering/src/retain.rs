@@ -188,6 +188,7 @@ impl RetainLowerer {
             },
         );
         self.context.pointer_types.push(UserTypeDeclaration {
+            is_union: false,
             data_type: DataType::PointerType {
                 name: Some(pointer_type_name),
                 referenced_type: Box::new(referenced_type),

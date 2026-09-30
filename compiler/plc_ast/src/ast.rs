@@ -860,6 +860,8 @@ pub struct UserTypeDeclaration {
     /// stores the original scope for compiler-generated types
     pub scope: Option<String>,
     pub linkage: LinkageType,
+    #[serde(default)]
+    pub is_union: bool,
 }
 
 impl Debug for UserTypeDeclaration {

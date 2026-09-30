@@ -885,6 +885,7 @@ fn is_property_datatype_start(token: &Token) -> bool {
     matches!(
         token,
         KeywordStruct
+            | KeywordUnion
             | KeywordArray
             | KeywordPointer
             | KeywordRef
@@ -1048,6 +1049,7 @@ fn parse_type(lexer: &mut ParseSession, linkage: LinkageType) -> Vec<UserTypeDec
             };
             lexer.try_consume_or_report(KeywordColon);
 
+            let is_union = lexer.token == KeywordUnion;
             let result = parse_full_data_type_definition(lexer, Some(name));
 
             if let Some((DataTypeDeclaration::Definition { data_type, .. }, initializer)) = result {
@@ -1057,6 +1059,7 @@ fn parse_type(lexer: &mut ParseSession, linkage: LinkageType) -> Vec<UserTypeDec
                     location: name_location,
                     scope: lexer.scope.clone(),
                     linkage,
+                    is_union,
                 });
             }
         }
@@ -1070,7 +1073,11 @@ fn parse_full_data_type_definition(
     lexer: &mut ParseSession,
     name: Option<String>,
 ) -> Option<DataTypeWithInitializer> {
-    let end_keyword = if lexer.token == KeywordStruct { KeywordEndStruct } else { KeywordSemicolon };
+    let end_keyword = match lexer.token {
+        KeywordStruct => KeywordEndStruct,
+        KeywordUnion => KeywordEndUnion,
+        _ => KeywordSemicolon,
+    };
     let parsed_datatype = parse_any_in_region(lexer, vec![end_keyword], |lexer| {
         let sized = lexer.try_consume(PropertySized);
         if lexer.try_consume(KeywordDotDotDot) {
@@ -1105,7 +1112,7 @@ fn parse_full_data_type_definition(
 
     // The standard allows semicolons at the end of an `END_STRUCT` keyword, hence if we parsed
     // a struct, try to also consume a semicolon if it exists
-    if end_keyword == KeywordEndStruct {
+    if end_keyword == KeywordEndStruct || end_keyword == KeywordEndUnion {
         lexer.try_consume(KeywordSemicolon);
     }
 
@@ -1121,6 +1128,25 @@ fn parse_data_type_definition(
     if lexer.try_consume(KeywordStruct) {
         // Parse struct
         let (variables, _) = parse_variable_list(lexer, "a struct field name");
+        Some((
+            DataTypeDeclaration::Definition {
+                data_type: Box::new(DataType::StructType { name, variables }),
+                location: start.span(&lexer.location()),
+                scope: lexer.scope.clone(),
+            },
+            None,
+        ))
+    } else if lexer.try_consume(KeywordUnion) {
+        if name.is_none() {
+            lexer.accept_diagnostic(
+                Diagnostic::new(
+                    "Inline UNION declarations are not supported, declare the union as a named TYPE",
+                )
+                .with_error_code("E024")
+                .with_location(lexer.last_location()),
+            );
+        }
+        let (variables, _) = parse_variable_list(lexer, "a union field name");
         Some((
             DataTypeDeclaration::Definition {
                 data_type: Box::new(DataType::StructType { name, variables }),

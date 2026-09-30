@@ -217,6 +217,7 @@ impl VirtualTableGenerator {
         };
 
         UserTypeDeclaration {
+            is_union: false,
             data_type: DataType::StructType { name: Some(helper::get_vtable_name(pou)), variables: members },
             initializer: None,
             location: location.clone(),

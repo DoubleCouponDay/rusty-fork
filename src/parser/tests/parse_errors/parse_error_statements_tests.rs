@@ -1124,6 +1124,7 @@ fn pointer_type_without_to_test() {
     let (result, diagnostics) = parse_buffered(src);
     let pointer_type = &result.user_types[0];
     let expected = UserTypeDeclaration {
+        is_union: false,
         data_type: DataType::PointerType {
             name: Some("SamplePointer".into()),
             referenced_type: Box::new(DataTypeDeclaration::Reference {
@@ -1154,6 +1155,7 @@ fn pointer_type_with_wrong_keyword_to_test() {
     let (result, diagnostics) = parse_buffered(src);
     let pointer_type = &result.user_types[0];
     let expected = UserTypeDeclaration {
+        is_union: false,
         data_type: DataType::PointerType {
             name: Some("SamplePointer".into()),
             referenced_type: Box::new(DataTypeDeclaration::Reference {
