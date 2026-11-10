@@ -208,6 +208,32 @@ pub fn build_namespace_map(units: &[&CompilationUnit]) -> NamespaceMap {
     resolved
 }
 
+fn referenced_namespaces(body: &str, namespaces: &NamespaceMap, own_namespace: Option<&str>) -> Vec<String> {
+    let lowered: std::collections::HashMap<String, &String> =
+        namespaces.iter().map(|(name, namespace)| (name.to_lowercase(), namespace)).collect();
+
+    let mut found: Vec<String> = Vec::new();
+
+    for token in body.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
+        if token.is_empty() {
+            continue;
+        }
+
+        let Some(namespace) = lowered.get(&token.to_lowercase()) else {
+            continue;
+        };
+
+        if own_namespace == Some(namespace.as_str()) || found.contains(namespace) {
+            continue;
+        }
+
+        found.push((*namespace).clone());
+    }
+
+    found.sort();
+    found
+}
+
 fn qualify_type_name(declared: &str, namespaces: &NamespaceMap) -> String {
     match namespaces.get(declared) {
         Some(namespace) => format!("{namespace}{NAMESPACE_SEPARATOR}{declared}"),
@@ -994,7 +1020,7 @@ pub(crate) fn generate_pous(
         let mut st_element = SST::new(); //<ST>
 
         if !procedure_text.is_empty() {
-            st_element = st_element.content(procedure_text);
+            st_element = st_element.content(procedure_text.clone());
         }
 
         let body_content = SBodyContent::new().attribute_str("xsi:type", "ST").child(&st_element);
@@ -1058,6 +1084,12 @@ pub(crate) fn generate_pous(
         };
 
         let mut pou_node = chosen_element.inner();
+
+        let using_nodes = referenced_namespaces(&procedure_text, namespaces, current_unit.namespace.as_deref())
+            .into_iter()
+            .map(|namespace| SUsingDirective::new().content(namespace).inner());
+
+        pou_node.children.splice(1..1, using_nodes);
 
         if let Some(documentation) = documentation {
             pou_node.children.insert(0, documentation.inner());

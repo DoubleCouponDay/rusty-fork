@@ -531,6 +531,7 @@ newtype_impl!(SInputVars, "InputVars", false);
 newtype_impl!(SInoutVars, "InoutVars", false);
 newtype_impl!(SOutputVars, "OutputVars", false);
 newtype_impl!(SAddress, "Address", false);
+newtype_impl!(SUsingDirective, "UsingDirective", false);
 
 pub const GLOBAL_NAMESPACE: &str = "GlobalNamespace";
 pub const NAMESPACE_DECL: &str = "NamespaceDecl";
